@@ -1,0 +1,10 @@
+{
+  "idf.currentSetup": "/home/felix/esp/v5.5.1/esp-idf",
+  "idf.customExtraVars": {},
+  "clangd.path": "/home/felix/.espressif/tools/esp-clang/esp-20.1.1_20250829/esp-clang/bin/clangd",
+  "clangd.arguments": [
+    "--background-index",
+    "--query-driver=**",
+    "--compile-commands-dir=/home/felix/work/smart-key/esp32-firmware/build"
+  ]
+}

@@ -1,0 +1,9 @@
+## Managed dependencies for the SmartKey door unit application.
+## The Zigbee stack is declared by components/smartkey_zigbee/idf_component.yml.
+dependencies:
+  idf:
+    ## Upper bound is deliberate: ESP-IDF 6.x ships mbedTLS 4.x, which removes
+    ## the legacy md/ecdh/ecp APIs this project uses. See the "ESP-IDF version"
+    ## section of ../README.md before relaxing it.
+    version: ">=5.5.0,<6.0.0"
+

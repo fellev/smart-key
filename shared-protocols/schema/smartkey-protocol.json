@@ -1,0 +1,177 @@
+{
+  "$comment": "Machine readable definition of the SmartKey wire protocol. Source of truth for generated constants on both platforms. See protocol-spec.md.",
+  "protocol": "SKP1",
+  "version": 1,
+  "ble": {
+    "manufacturerId": 65535,
+    "advMagic": 75,
+    "advPayloadLength": 12,
+    "advertisingIntervalMs": 100,
+    "doorMagic": 68,
+    "doorPayloadLength": 12,
+    "doorIdLength": 6,
+    "doorBeaconIntervalMs": 1000,
+    "scanIntervalMs": 60,
+    "scanWindowMs": 60,
+    "service": "8e9a0001-6b5f-4b1e-9c9e-2f0a6f0c5a10",
+    "characteristics": {
+      "control": "8e9a0002-6b5f-4b1e-9c9e-2f0a6f0c5a10",
+      "status": "8e9a0003-6b5f-4b1e-9c9e-2f0a6f0c5a10",
+      "pairing": "8e9a0004-6b5f-4b1e-9c9e-2f0a6f0c5a10"
+    },
+    "cccdUuid": "00002902-0000-1000-8000-00805f9b34fb",
+    "attMtu": 247,
+    "minUsablePayload": 100
+  },
+  "advFlags": {
+    "SCREEN_ON": 1,
+    "UNLOCKED": 2,
+    "PAIRING_MODE": 4,
+    "PAIRING_BEACON": 128
+  },
+  "frame": {
+    "headerSize": 4,
+    "maxPayload": 236,
+    "fields": [
+      {
+        "name": "version",
+        "offset": 0,
+        "size": 1
+      },
+      {
+        "name": "type",
+        "offset": 1,
+        "size": 1
+      },
+      {
+        "name": "length",
+        "offset": 2,
+        "size": 2,
+        "endian": "little"
+      }
+    ]
+  },
+  "frameTypes": {
+    "HELLO": 1,
+    "AUTH": 2,
+    "SESSION_OK": 3,
+    "UNLOCK_EVENT": 4,
+    "UNLOCK_ACK": 5,
+    "PRESENCE_PING": 6,
+    "PRESENCE_PONG": 7,
+    "PAIR_START": 16,
+    "PAIR_RESPONSE": 17,
+    "PAIR_CONFIRM": 18,
+    "PAIR_RESULT": 19,
+    "ERROR": 127
+  },
+  "payloadSizes": {
+    "HELLO": 34,
+    "AUTH": 64,
+    "SESSION_OK": 42,
+    "UNLOCK_EVENT": 46,
+    "UNLOCK_ACK": 12,
+    "PRESENCE_PING": 0,
+    "PRESENCE_PONG": 0,
+    "PAIR_START": 64,
+    "PAIR_RESPONSE": 96,
+    "PAIR_CONFIRM": 32,
+    "PAIR_RESULT": 4,
+    "ERROR": 2
+  },
+  "errorCodes": {
+    "UNSUPPORTED_VERSION": 1,
+    "MALFORMED_FRAME": 2,
+    "UNKNOWN_USER": 3,
+    "AUTH_FAILED": 4,
+    "NOT_PAIRED": 5,
+    "PAIRING_DISABLED": 6,
+    "RATE_LIMITED": 7,
+    "TIMEOUT": 8,
+    "INTERNAL": 9
+  },
+  "unlockResults": {
+    "OK": 0,
+    "ZIGBEE_ERROR": 1,
+    "NOT_PERMITTED": 2,
+    "RATE_LIMITED": 3
+  },
+  "pairResults": {
+    "OK": 0,
+    "BAD_CONFIRM": 1,
+    "STORE_FULL": 2,
+    "DISABLED": 3
+  },
+  "crypto": {
+    "hash": "SHA-256",
+    "kdf": "HKDF-SHA256",
+    "ecdh": "X25519",
+    "keySize": 32,
+    "nonceSize": 16,
+    "idSize": 16,
+    "tagSize": 32,
+    "sessionIdSize": 8,
+    "pseudonymSize": 6,
+    "beaconEpochSeconds": 15,
+    "beaconEpochSkew": 2,
+    "info": {
+      "beacon": "SKP1-beacon",
+      "auth": "SKP1-auth",
+      "session": "SKP1-session",
+      "pseudonym": "SKP1-pseudo",
+      "authTranscript": "SKP1-auth-v1",
+      "pairTranscript": "SKP1-pair-v1"
+    },
+    "domain": {
+      "AUTH_PHONE": 1,
+      "AUTH_LOCK": 2,
+      "SESSION_ID": 3,
+      "UNLOCK_EVENT": 16,
+      "PAIR_CONFIRM_LOCK": 1,
+      "PAIR_CONFIRM_PHONE": 2
+    }
+  },
+  "timing": {
+    "ledTargetMs": 1000,
+    "sessionTtlSeconds": 10,
+    "handshakeTimeoutMs": 1500,
+    "rssiEnterDbm": -70,
+    "rssiExitDbm": -85,
+    "rssiExitSamples": 3,
+    "pairingWindowSeconds": 120,
+    "unlockMinIntervalMs": 2000
+  },
+  "proximity": {
+    "$comment": "LED gate: the phone must be measured next to the board, not merely authenticated. See protocol-spec.md \u00a78.4.",
+    "nearDbm": -60,
+    "farDbm": -72,
+    "window": 5,
+    "minSamples": 3,
+    "pollMs": 250,
+    "filter": "median"
+  },
+  "zigbee": {
+    "endpoint": 1,
+    "deviceId": 259,
+    "profileId": 260,
+    "clientClusters": [
+      6,
+      3
+    ],
+    "serverClusters": [
+      0,
+      3
+    ],
+    "manufacturer": "SmartKey",
+    "model": "SK-DOOR-C5"
+  },
+  "doorFlags": {
+    "PAIRING": 1,
+    "ENROLLED": 2
+  },
+  "rearm": {
+    "departDbm": -75,
+    "absentMs": 3000,
+    "maxHoldMs": 60000
+  }
+}

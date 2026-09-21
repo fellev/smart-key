@@ -1,0 +1,36 @@
+<resources>
+    <string name="app_name">SmartKey</string>
+    <string name="action_settings">Settings</string>
+
+    <!-- Navigation labels -->
+    <string name="status_fragment_label">SmartKey</string>
+    <string name="pairing_fragment_label">Pair a door</string>
+
+    <!-- Status screen -->
+    <string name="status_stopped">Presence is off</string>
+    <string name="status_advertising">Ready — walk up to your door</string>
+    <string name="status_listening">Listening — radio silent until a door is near</string>
+    <string name="status_connected">At your door — press the button to open</string>
+    <string name="status_unlocked">Door opened</string>
+    <string name="status_no_doors">No doors paired yet</string>
+    <string name="status_hint_no_doors">Put the door unit into pairing mode by holding its button for 5 seconds, then tap \"Pair a door\".</string>
+
+    <string name="presence_start">Turn presence on</string>
+    <string name="presence_stop">Turn presence off</string>
+    <string name="pair_new_door">Pair a door</string>
+    <string name="paired_doors">Paired doors</string>
+    <string name="forget_door">Forget</string>
+
+    <!-- Pairing screen -->
+    <string name="pairing_code_hint">8 digit pairing code</string>
+    <string name="pairing_label_hint">Name for this door</string>
+    <string name="pairing_start">Start pairing</string>
+    <string name="pairing_cancel">Cancel</string>
+    <string name="pairing_instructions">Hold the button on the door unit for 5 seconds until the LED blinks, then enter the pairing code shown on its console.</string>
+    <string name="pairing_code_invalid">Enter all 8 digits of the pairing code</string>
+    <string name="pairing_idle">Ready to pair</string>
+
+    <!-- Permissions -->
+    <string name="permissions_required">SmartKey needs Bluetooth and notification permissions to recognise you at the door.</string>
+    <string name="grant_permissions">Grant permissions</string>
+</resources>

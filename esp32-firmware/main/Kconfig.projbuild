@@ -1,0 +1,281 @@
+menu "SmartKey door unit"
+
+    menu "Hardware"
+        config SMARTKEY_LED_GPIO
+            int "Permission LED GPIO"
+            default 8
+            range 0 48
+            help
+                Drives the LED that indicates "you may open this door".
+
+        config SMARTKEY_LED_ACTIVE_LOW
+            bool "Permission LED is active low"
+            default n
+            help
+                Many dev boards wire the on-board LED to 3V3, so driving the pin low
+                turns it on. Enable this for those boards.
+
+        config SMARTKEY_BUTTON_GPIO
+            int "Unlock button GPIO"
+            default 9
+            range 0 48
+            help
+                Button to ground; the internal pull-up is enabled.
+
+        config SMARTKEY_BUTTON_DEBOUNCE_MS
+            int "Button debounce time (ms)"
+            default 40
+            range 5 250
+    endmenu
+
+    menu "Presence and timing"
+        config SMARTKEY_RSSI_ENTER_DBM
+            int "RSSI threshold to start a session (dBm)"
+            default -70
+            range -100 0
+            help
+                An advertisement stronger than this triggers the connection. Keep
+                this looser than the LED threshold below: connecting early hides
+                the handshake latency, and the LED is gated separately by the
+                filtered proximity check (protocol-spec.md §8.3).
+
+        config SMARTKEY_RSSI_EXIT_DBM
+            int "RSSI threshold to drop the connection entirely (dBm)"
+            default -85
+            range -100 0
+            help
+                The phone is considered gone at this level and the link is closed.
+                Must be lower than the LED far threshold.
+
+        config SMARTKEY_RSSI_EXIT_SAMPLES
+            int "Consecutive weak samples before dropping a session"
+            default 3
+            range 1 10
+
+        comment "LED proximity gate (how close is 'at the door')"
+
+        config SMARTKEY_PROXIMITY_NEAR_DBM
+            int "Filtered RSSI at or above which the LED turns on (dBm)"
+            default -60
+            range -100 0
+            help
+                The permission LED only lights when the MEDIAN of the last N RSSI
+                samples reaches this level, i.e. when the phone is genuinely next
+                to the board. Approximate guide at medium phone TX power:
+                  -50 dBm ~ touching the reader
+                  -60 dBm ~ 1 m      (default)
+                  -70 dBm ~ 2-3 m
+                  -80 dBm ~ across the room
+                Measure your own installation with the 'rssi' console command:
+                it prints raw and filtered values live.
+
+        config SMARTKEY_PROXIMITY_FAR_DBM
+            int "Filtered RSSI below which the LED turns off (dBm)"
+            default -72
+            range -100 0
+            help
+                Must be below the near threshold. The gap is hysteresis: with
+                -60/-72 the user can move about a metre without the LED blinking
+                on and off.
+
+        config SMARTKEY_PROXIMITY_WINDOW
+            int "RSSI samples in the median filter"
+            default 5
+            range 1 9
+            help
+                Larger windows reject more noise but react more slowly. At the
+                250 ms poll rate, 5 samples means the LED follows the user with
+                roughly 0.5-0.75 s of lag while still ignoring single spikes.
+
+        config SMARTKEY_PROXIMITY_MIN_SAMPLES
+            int "Samples required before the LED may turn on"
+            default 3
+            range 1 9
+            help
+                Guarantees that no single lucky reflection can light the LED.
+                Samples collected from advertisements while scanning count
+                towards this, so the LED is still immediate on approach.
+
+        config SMARTKEY_PROXIMITY_POLL_MS
+            int "How often the connection RSSI is sampled (ms)"
+            default 250
+            range 50 5000
+            help
+                Drives how quickly the LED reacts to movement. 250 ms keeps the
+                LED responsive at negligible CPU and radio cost.
+
+        comment "Door beacon (wakes a phone whose presence service was killed)"
+
+        config SMARTKEY_DOOR_BEACON_ENABLE
+            bool "Advertise a static door beacon"
+            default y
+            help
+                Emits a non-connectable beacon carrying a STATIC identifier, so the
+                phone can register a hardware-offloaded scan filter for it.
+
+                REQUIRED by the app's "listen first" presence mode, which is the
+                default: in that mode the phone transmits nothing at all until it
+                hears this beacon. With no door beacon such a phone will never
+                start advertising and the door will never see it.
+
+                It also serves as a recovery path in either mode: if Android
+                (notably Samsung's "Deep Sleeping" app killer) stops the SmartKey
+                presence service, this beacon causes the phone to restart it.
+
+                The radio interleaves this with scanning. Verify the cost on your
+                board with the 'scanstats' console command (see
+                esp32-firmware/README.md) and raise the interval if needed.
+
+        config SMARTKEY_DOOR_BEACON_INTERVAL_MS
+            int "Door beacon advertising interval (ms)"
+            default 1000
+            range 100 10240
+            depends on SMARTKEY_DOOR_BEACON_ENABLE
+            help
+                Slow on purpose. This beacon only has to be noticed eventually by a
+                low-power background scan, so a long interval keeps radio time away
+                from scanning, which is what actually has to stay fast.
+
+        config SMARTKEY_DOOR_BEACON_IDLE_ONLY
+            bool "Only beacon while no phone is connected"
+            default y
+            depends on SMARTKEY_DOOR_BEACON_ENABLE
+            help
+                With a phone already connected the radio time is better spent on
+                the live session than on a beacon.
+
+                Trade-off for multi-user installs: while one phone is connected a
+                SECOND phone in "listen first" mode will not hear the door, so it
+                cannot break radio silence until the first user walks away. If two
+                people regularly arrive together, disable this so the door keeps
+                beaconing during a session.
+
+        comment "After the door opens"
+
+        config SMARTKEY_RELEASE_AFTER_UNLOCK
+            bool "Go idle once the door has been opened"
+            default y
+            help
+                After a successful unlock the door drops the session, turns the LED
+                off and returns to IDLE, instead of staying lit while the user is
+                still standing there.
+
+                "One approach, one opening": the LED stops inviting further presses
+                the moment the door is actually open.
+
+                Disable for doors where repeated openings without walking away are
+                normal (a loading bay, say).
+
+        config SMARTKEY_REARM_DEPART_DBM
+            int "Phone must be seen weaker than this to re-arm (dBm)"
+            default -75
+            range -100 0
+            depends on SMARTKEY_RELEASE_AFTER_UNLOCK
+            help
+                Re-arming is based on DEPARTURE, not on a timer. Just going idle is
+                not enough: the phone that opened the door is still next to the
+                reader and still advertising, so the scanner would reconnect within
+                a few hundred ms and light the LED straight back up. A plain
+                cooldown has the same problem, only a few seconds later.
+
+                So the same phone is refused until it is seen at or below this
+                level (it has moved away) or stops being seen at all.
+
+                Keep this BELOW the disconnect threshold so departure is detected
+                clearly and never triggers while the user is still at the door.
+
+        config SMARTKEY_REARM_ABSENT_MS
+            int "Or re-arm after not seeing the phone at all for (ms)"
+            default 3000
+            range 0 60000
+            depends on SMARTKEY_RELEASE_AFTER_UNLOCK
+            help
+                The usual real-world case: the user walks through the door and the
+                phone simply disappears from view. 0 disables this rule.
+
+        config SMARTKEY_REARM_MAX_HOLD_MS
+            int "Absolute cap on how long one phone may be refused (ms)"
+            default 60000
+            range 0 600000
+            depends on SMARTKEY_RELEASE_AFTER_UNLOCK
+            help
+                Safety valve. Without it a phone left lying on a desk beside the
+                reader — never departing, never absent — would keep the door
+                permanently refused for that user. 0 = no cap (not recommended).
+
+        config SMARTKEY_SESSION_TTL_S
+            int "Session TTL without a PRESENCE_PONG (s)"
+            default 10
+            range 2 120
+
+        config SMARTKEY_HANDSHAKE_TIMEOUT_MS
+            int "Handshake timeout (ms)"
+            default 1500
+            range 200 10000
+    endmenu
+
+    menu "Security"
+        config SMARTKEY_MAX_USERS
+            int "Maximum paired phones"
+            default 8
+            range 1 32
+
+        config SMARTKEY_PAIRING_CODE
+            string "Fixed 8 digit pairing code (empty = random per session)"
+            default ""
+            help
+                Leave empty in production: a random code is then generated for each
+                pairing window and printed on the serial console.
+
+        config SMARTKEY_PAIRING_WINDOW_S
+            int "How long pairing mode stays open (s)"
+            default 120
+            range 10 600
+
+        config SMARTKEY_PAIRING_HOLD_MS
+            int "Button hold time to enter pairing mode (ms)"
+            default 5000
+            range 1000 20000
+
+        config SMARTKEY_FACTORY_RESET_HOLD_MS
+            int "Button hold time for factory reset (ms)"
+            default 10000
+            range 5000 60000
+
+        config SMARTKEY_REQUIRE_PHONE_UNLOCKED
+            bool "Require the phone to report an unlocked keyguard"
+            default n
+            help
+                When enabled, a phone that advertises without the UNLOCKED flag is
+                ignored (security-model.md, threat A5).
+
+        config SMARTKEY_UNLOCK_MIN_INTERVAL_MS
+            int "Minimum interval between two unlocks (ms)"
+            default 2000
+            range 0 60000
+    endmenu
+
+    menu "Zigbee"
+        config SMARTKEY_ZIGBEE_ENABLED
+            bool "Enable the Zigbee end device"
+            default y
+            help
+                Disable to build and test the BLE presence logic without a Zigbee
+                coordinator; unlock requests are then only logged.
+
+        config SMARTKEY_ZIGBEE_USE_TOGGLE
+            bool "Send Toggle instead of On"
+            default n
+            help
+                Some door relays are wired as a toggle rather than a momentary On.
+
+        config SMARTKEY_ZIGBEE_PULSE_MS
+            int "Send an Off command after this delay (0 = never)"
+            default 0
+            range 0 60000
+            help
+                For relays that need an explicit release. 0 keeps the momentary
+                behaviour handled by Home Assistant.
+    endmenu
+
+endmenu
