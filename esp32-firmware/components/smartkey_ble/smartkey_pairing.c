@@ -10,6 +10,7 @@
 #include <string.h>
 
 #include "esp_log.h"
+#include "host/ble_att.h"
 #include "host/ble_gap.h"
 #include "host/ble_hs.h"
 #include "services/gatt/ble_svc_gatt.h"
@@ -77,11 +78,28 @@ static const struct ble_gatt_svc_def s_services[] = {
 /** Send a frame back to the phone as a notification on PAIRING. */
 static void notify(const uint8_t *frame, uint16_t len)
 {
-    struct os_mbuf *om = ble_hs_mbuf_from_flat(frame, len);
-    if (om == NULL) {
+    /* Pairing frames are not fragmented, so a notification larger than the
+     * negotiated MTU would be truncated and the phone would report a
+     * malformed response. Log it loudly rather than failing silently: it means
+     * the central never raised the MTU (default is 23, i.e. 20 usable). */
+    const uint16_t mtu = ble_att_mtu(s_ctx.conn_handle);
+    if (mtu != 0 && len + 3 > mtu) {
+        ESP_LOGE(TAG,
+                 "cannot send %u byte frame: ATT MTU is only %u. The phone did not "
+                 "negotiate a larger MTU, so pairing cannot proceed.",
+                 (unsigned)len, (unsigned)mtu);
         return;
     }
-    ble_gatts_notify_custom(s_ctx.conn_handle, s_ctx.pairing_handle, om);
+
+    struct os_mbuf *om = ble_hs_mbuf_from_flat(frame, len);
+    if (om == NULL) {
+        ESP_LOGE(TAG, "out of mbufs sending a %u byte frame", (unsigned)len);
+        return;
+    }
+    int rc = ble_gatts_notify_custom(s_ctx.conn_handle, s_ctx.pairing_handle, om);
+    if (rc != 0) {
+        ESP_LOGW(TAG, "notify failed (%d)", rc);
+    }
 }
 
 static void send_result(uint8_t status, uint8_t slot)

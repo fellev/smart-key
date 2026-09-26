@@ -57,8 +57,9 @@ extern "C" {
  * round (door connects to phone).
  */
 #define SKP_DOOR_MAGIC 0x44 /**< 'D', distinguishes it from the phone beacon 'K' */
-#define SKP_DOOR_PAYLOAD_SIZE 12 /**< incl. the 2 byte company id */
+#define SKP_DOOR_PAYLOAD_SIZE 19 /**< incl. the 2 byte company id */
 #define SKP_DOOR_ID_SIZE 6       /**< leading bytes of lock_id carried in the beacon */
+#define SKP_DOOR_EPOCH_SIZE 8    /**< door-local epoch, little endian */
 
 /** The door currently has a pairing window open. */
 #define SKP_DOOR_FLAG_PAIRING 0x01
@@ -195,6 +196,7 @@ typedef struct {
 typedef struct {
     uint8_t flags;
     uint8_t lock_id[SKP_DOOR_ID_SIZE];
+    uint64_t local_epoch;
 } skp_door_adv_t;
 
 /* ------------------------------------------------------------------- API */

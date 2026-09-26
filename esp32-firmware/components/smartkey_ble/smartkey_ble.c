@@ -62,6 +62,7 @@ typedef struct {
     uint16_t status_handle;
     uint16_t status_cccd_handle;
     uint16_t pairing_handle;
+    bool service_found;
 
     size_t slot;                          /**< credential slot of the peer */
     uint8_t nonce_l[SKP_NONCE_SIZE];
@@ -123,6 +124,8 @@ static volatile skb_state_t s_state = SKB_STATE_IDLE;
 #if CONFIG_SMARTKEY_DOOR_BEACON_ENABLE
 /** True while the non-connectable door beacon is being advertised. */
 static bool s_door_beacon_on;
+static uint64_t s_door_beacon_epoch;
+static bool s_door_beacon_epoch_valid;
 #endif
 static conn_ctx_t s_conn = {.conn_handle = BLE_HS_CONN_HANDLE_NONE};
 static char s_pairing_code[SKP_PAIRING_CODE_LEN + 1];
@@ -478,6 +481,7 @@ static void handle_frame(const uint8_t *data, uint16_t len)
     switch (frame.type) {
     case SKP_FRAME_AUTH:
         if (s_state == SKB_STATE_HANDSHAKING) {
+            ESP_LOGI(TAG, "received AUTH");
             handle_auth(&frame);
         }
         break;
@@ -631,11 +635,16 @@ static int on_svc_disc(uint16_t conn_handle, const struct ble_gatt_error *error,
                        const struct ble_gatt_svc *service, void *arg)
 {
     if (error->status == 0 && service != NULL) {
-        ble_gattc_disc_all_chrs(conn_handle, service->start_handle, service->end_handle,
-                                on_chr_disc, NULL);
+        s_conn.service_found = true;
+        int rc = ble_gattc_disc_all_chrs(conn_handle, service->start_handle, service->end_handle,
+                                         on_chr_disc, NULL);
+        if (rc != 0) {
+            ESP_LOGW(TAG, "characteristic discovery could not start (%d)", rc);
+            disconnect(BLE_ERR_REM_USER_CONN_TERM);
+        }
         return 0;
     }
-    if (error->status == BLE_HS_EDONE && s_conn.control_handle == 0) {
+    if (error->status == BLE_HS_EDONE && !s_conn.service_found) {
         ESP_LOGW(TAG, "SmartKey service not found on peer");
         disconnect(BLE_ERR_REM_USER_CONN_TERM);
     }
@@ -734,8 +743,13 @@ static bool should_connect(const struct ble_gap_disc_desc *desc, size_t *out_slo
  */
 static void start_door_beacon(void)
 {
-    if (s_door_beacon_on) {
+    const uint64_t epoch = skc_epoch_for((uint64_t)(esp_timer_get_time() / 1000000));
+    if (s_door_beacon_on && s_door_beacon_epoch_valid && s_door_beacon_epoch == epoch) {
         return;
+    }
+    if (s_door_beacon_on) {
+        ble_gap_adv_stop();
+        s_door_beacon_on = false;
     }
     /* Never compete with the pairing advertisement for the radio. */
     if (s_state == SKB_STATE_PAIRING) {
@@ -748,6 +762,7 @@ static void start_door_beacon(void)
         return;
     }
     memcpy(beacon.lock_id, lock_id, SKP_DOOR_ID_SIZE);
+    beacon.local_epoch = epoch;
     if (sks_count() > 0) {
         beacon.flags |= SKP_DOOR_FLAG_ENROLLED;
     }
@@ -779,6 +794,8 @@ static void start_door_beacon(void)
         return;
     }
     s_door_beacon_on = true;
+    s_door_beacon_epoch = epoch;
+    s_door_beacon_epoch_valid = true;
     ESP_LOGI(TAG, "door beacon advertising every %d ms",
              CONFIG_SMARTKEY_DOOR_BEACON_INTERVAL_MS);
 }
@@ -790,6 +807,7 @@ static void stop_door_beacon(void)
     }
     ble_gap_adv_stop();
     s_door_beacon_on = false;
+    s_door_beacon_epoch_valid = false;
 }
 
 /**
@@ -1021,6 +1039,14 @@ static void housekeeping_task(void *arg)
             last_pseudo = now;
             /* Epochs are 15 s wide; once per second is plenty and cheap. */
             skb_pseudo_rebuild(skc_epoch_for((uint64_t)(esp_timer_get_time() / 1000000)));
+            update_door_beacon();
+        }
+
+        if (s_state == SKB_STATE_HANDSHAKING &&
+            (esp_timer_get_time() - s_conn.started_us) / 1000 >=
+                CONFIG_SMARTKEY_HANDSHAKE_TIMEOUT_MS) {
+            ESP_LOGW(TAG, "handshake timed out waiting for AUTH");
+            disconnect(BLE_ERR_REM_USER_CONN_TERM);
         }
 
         if ((now - last_ping) >= ping_period) {

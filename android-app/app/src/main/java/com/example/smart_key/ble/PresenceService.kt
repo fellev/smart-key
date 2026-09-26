@@ -20,6 +20,7 @@ import com.example.smart_key.R
 import com.example.smart_key.data.Credential
 import com.example.smart_key.data.CredentialStore
 import com.example.smart_key.data.Settings
+import com.example.smart_key.protocol.SmartKeyProtocol
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -45,6 +46,7 @@ class PresenceService : LifecycleService(), SmartKeyGattServer.Listener {
     private lateinit var advertiser: SmartKeyAdvertiser
     private lateinit var gattServer: SmartKeyGattServer
     private lateinit var gate: PresenceGate
+    private var gattReady = false
 
     private val handler = Handler(Looper.getMainLooper())
 
@@ -70,7 +72,12 @@ class PresenceService : LifecycleService(), SmartKeyGattServer.Listener {
             ACTION_DOOR_SEEN -> {
                 // A door beacon was picked up by the offloaded scan. In
                 // listen-first mode this is what breaks radio silence.
-                onDoorSeen()
+                val lockIdPrefix = intent.getByteArrayExtra(EXTRA_DOOR_ID_PREFIX)
+                if (lockIdPrefix == null || !intent.hasExtra(EXTRA_DOOR_EPOCH)) {
+                    Log.w(TAG, "door beacon action missing identity or epoch")
+                } else {
+                    onDoorSeen(lockIdPrefix, intent.getLongExtra(EXTRA_DOOR_EPOCH, 0))
+                }
                 return START_STICKY
             }
         }
@@ -95,6 +102,7 @@ class PresenceService : LifecycleService(), SmartKeyGattServer.Listener {
         refreshDeviceFlags()
         // The GATT server is passive — it costs nothing until a door connects,
         // and it must already be up when one does, so it runs in both modes.
+        gattReady = false
         gattServer.start(credentials)
 
         // Listening is what wakes us in listen-first mode, and what repairs us
@@ -126,6 +134,11 @@ class PresenceService : LifecycleService(), SmartKeyGattServer.Listener {
         }
 
         if (gate.shouldTransmit(now)) {
+            if (!gattReady) {
+                _state.value = State.LISTENING
+                Log.i(TAG, "waiting for GATT service registration before advertising")
+                return
+            }
             advertiser.start(credentials)
             if (_state.value != State.CONNECTED && _state.value != State.UNLOCKED) {
                 _state.value = State.ADVERTISING
@@ -142,11 +155,16 @@ class PresenceService : LifecycleService(), SmartKeyGattServer.Listener {
     }
 
     /** A door beacon was seen; break radio silence if we are listening. */
-    private fun onDoorSeen() {
+    private fun onDoorSeen(lockIdPrefix: ByteArray, epoch: Long) {
+        if (lockIdPrefix.size != SmartKeyProtocol.DOOR_ID_SIZE) return
+        val credential = store.all().firstOrNull {
+            it.lockId.copyOfRange(0, SmartKeyProtocol.DOOR_ID_SIZE).contentEquals(lockIdPrefix)
+        } ?: return
         if (!gate.isRunning) {
             startPresence()
-            return
         }
+        if (!gate.isRunning) return
+        advertiser.setDoorEpoch(credential, epoch)
         gate.onDoorSeen(SystemClock.elapsedRealtime())
         applyGate()
     }
@@ -206,6 +224,15 @@ class PresenceService : LifecycleService(), SmartKeyGattServer.Listener {
     }
 
     // ------------------------------------------- SmartKeyGattServer.Listener
+
+    override fun onReady() {
+        handler.post {
+            if (gate.isRunning) {
+                gattReady = true
+                applyGate()
+            }
+        }
+    }
 
     override fun onAuthenticated(credential: Credential) {
         // Pin transmission for the duration of the session: going silent with
@@ -287,6 +314,8 @@ class PresenceService : LifecycleService(), SmartKeyGattServer.Listener {
         const val ACTION_STOP = "com.example.smart_key.STOP_PRESENCE"
         /** A door beacon was heard; breaks radio silence in listen-first mode. */
         const val ACTION_DOOR_SEEN = "com.example.smart_key.DOOR_SEEN_SERVICE"
+        const val EXTRA_DOOR_ID_PREFIX = "door_id_prefix"
+        const val EXTRA_DOOR_EPOCH = "door_epoch"
 
         private val _state = MutableStateFlow(State.STOPPED)
         val state: StateFlow<State> = _state

@@ -328,20 +328,23 @@ static void test_advertisement(void)
 static void test_door_beacon(void)
 {
     skp_door_adv_t door = {.flags = SKP_DOOR_FLAG_ENROLLED,
-                           .lock_id = {0xDE, 0xAD, 0xBE, 0xEF, 0x01, 0x02}};
+                           .lock_id = {0xDE, 0xAD, 0xBE, 0xEF, 0x01, 0x02},
+                           .local_epoch = 0x0102030405060708ULL};
 
     uint8_t buf[SKP_DOOR_PAYLOAD_SIZE];
     int n = skp_door_adv_build(&door, buf, sizeof(buf));
     check_int("door beacon build size", n, SKP_DOOR_PAYLOAD_SIZE);
     check_int("door beacon magic is 'D'", buf[2], SKP_DOOR_MAGIC);
-    check_int("door beacon reserved byte is zero", buf[11], 0);
+    check_int("door beacon epoch is little endian", buf[11], 0x08);
 
     skp_door_adv_t parsed;
     check_int("door beacon parse", skp_door_adv_parse(buf, sizeof(buf), &parsed), SKP_OK);
-    check_true("door beacon round trip", memcmp(&door, &parsed, sizeof(door)) == 0);
+    check_int("door beacon flags round trip", parsed.flags, door.flags);
+    check_bytes("door beacon lock id round trip", parsed.lock_id, sizeof(parsed.lock_id),
+                "deadbeef0102");
+    check_true("door beacon epoch round trip", parsed.local_epoch == door.local_epoch);
 
-    /* Determinism is the whole point: an offloaded scan filter matches fixed
-     * bytes, so the same input must always produce the identical payload. */
+    /* Magic and version stay fixed, so Android can offload the scan filter. */
     uint8_t again[SKP_DOOR_PAYLOAD_SIZE];
     skp_door_adv_build(&door, again, sizeof(again));
     check_true("door beacon is static across builds",

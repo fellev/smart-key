@@ -83,8 +83,7 @@ object ScanRecovery {
         val filter = ScanFilter.Builder()
             .setManufacturerData(
                 SmartKeyProtocol.MANUFACTURER_ID,
-                DoorBeacon.FILTER_DATA,
-                DoorBeacon.FILTER_MASK
+                byteArrayOf(SmartKeyProtocol.DOOR_MAGIC, SmartKeyProtocol.VERSION)
             )
             .build()
 
@@ -94,11 +93,10 @@ object ScanRecovery {
             // beyond LED range, so a slow duty cycle still catches it during
             // the user's approach.
             .setScanMode(ScanSettings.SCAN_MODE_LOW_POWER)
-            // FIRST_MATCH plus STICKY means one wake-up per arrival rather
-            // than a stream of duplicates while the user stands at the door.
-            .setCallbackType(ScanSettings.CALLBACK_TYPE_FIRST_MATCH)
-            .setMatchMode(ScanSettings.MATCH_MODE_STICKY)
-            .setNumOfMatches(ScanSettings.MATCH_NUM_ONE_ADVERTISEMENT)
+            // This phone's controller accepts the offloaded filter but does
+            // not reliably dispatch FIRST_MATCH results for this beacon.
+            // The receiver validates and handles duplicate sightings safely.
+            .setCallbackType(ScanSettings.CALLBACK_TYPE_ALL_MATCHES)
             .build()
 
         return try {

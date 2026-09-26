@@ -3,6 +3,7 @@ package com.example.smart_key
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -85,6 +86,30 @@ class StatusFragment : Fragment() {
         super.onResume()
         renderDoors()
         render(PresenceService.state.value)
+        showLastCrashIfAny()
+    }
+
+    /**
+     * Surface the previous crash, if the app died last run.
+     *
+     * The platform's own report is a `DeadObjectException` from system_server
+     * that names no frame in this app, so without this the actual cause is
+     * effectively invisible unless logcat happened to be attached at the time.
+     * Shown once, then the file is deleted.
+     */
+    private fun showLastCrashIfAny() {
+        val file = java.io.File(requireContext().filesDir, SmartKeyApp.CRASH_FILE)
+        if (!file.exists()) return
+
+        val text = runCatching { file.readText() }.getOrNull()
+        runCatching { file.delete() }
+        if (text.isNullOrBlank()) return
+
+        Log.e(TAG, "previous crash:\n$text")
+        val firstLines = text.lineSequence().take(4).joinToString(" / ")
+        Snackbar.make(binding.root, "Last run crashed: $firstLines", Snackbar.LENGTH_INDEFINITE)
+            .setAction("Dismiss") { }
+            .show()
     }
 
     private fun togglePresence() {
@@ -151,5 +176,9 @@ class StatusFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    private companion object {
+        const val TAG = "StatusFragment"
     }
 }

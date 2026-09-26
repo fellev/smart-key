@@ -12,8 +12,8 @@ import org.junit.Test
  * The door beacon is the recovery path for a presence service killed by the
  * OS. Two properties carry the whole design and are asserted here:
  *
- *  1. the payload is **static**, which is what lets Android offload the scan
- *     filter into the Bluetooth controller;
+ *  1. the fixed prefix lets Android offload the scan filter into the
+ *     Bluetooth controller while the local epoch advances;
  *  2. it can never be confused with a *phone* beacon, even though the two
  *     share a manufacturer id.
  */
@@ -21,48 +21,52 @@ class DoorBeaconTest {
 
     private val lockId = byteArrayOf(0xDE.toByte(), 0xAD.toByte(), 0xBE.toByte(),
         0xEF.toByte(), 0x01, 0x02)
+    private val epoch = 0x0102030405060708L
 
     @Test
     fun `round trips through the full payload`() {
-        val beacon = DoorBeacon(SmartKeyProtocol.DOOR_FLAG_ENROLLED, lockId)
+        val beacon = DoorBeacon(SmartKeyProtocol.DOOR_FLAG_ENROLLED, lockId, epoch)
         val parsed = DoorBeacon.parse(beacon.toFullPayload())
 
         assertNotNull(parsed)
         assertEquals(SmartKeyProtocol.DOOR_FLAG_ENROLLED, parsed!!.flags)
         assertArrayEquals(lockId, parsed.lockId)
+        assertEquals(epoch, parsed.localEpoch)
         assertTrue(parsed.isEnrolled)
         assertFalse(parsed.isPairing)
     }
 
     @Test
     fun `round trips through the form Android returns from a scan`() {
-        val beacon = DoorBeacon(SmartKeyProtocol.DOOR_FLAG_ENROLLED, lockId)
+        val beacon = DoorBeacon(SmartKeyProtocol.DOOR_FLAG_ENROLLED, lockId, epoch)
         // getManufacturerSpecificData() strips the company id.
         val parsed = DoorBeacon.parseWithoutCompanyId(beacon.toManufacturerData())
 
         assertNotNull(parsed)
         assertArrayEquals(lockId, parsed!!.lockId)
+        assertEquals(epoch, parsed.localEpoch)
         assertTrue(parsed.isEnrolled)
     }
 
     @Test
-    fun `payload is byte-identical every time so the filter can be offloaded`() {
-        val a = DoorBeacon(SmartKeyProtocol.DOOR_FLAG_ENROLLED, lockId).toFullPayload()
-        val b = DoorBeacon(SmartKeyProtocol.DOOR_FLAG_ENROLLED, lockId).toFullPayload()
-        assertArrayEquals(a, b)
+    fun `fixed beacon prefix permits hardware filtering`() {
+        val a = DoorBeacon(SmartKeyProtocol.DOOR_FLAG_ENROLLED, lockId, epoch).toFullPayload()
+        val b = DoorBeacon(SmartKeyProtocol.DOOR_FLAG_ENROLLED, lockId, epoch + 1).toFullPayload()
+        assertArrayEquals(a.copyOfRange(0, 11), b.copyOfRange(0, 11))
+        assertFalse(a.contentEquals(b))
     }
 
     @Test
     fun `matches the firmware layout`() {
-        val payload = DoorBeacon(0, lockId).toFullPayload()
+        val payload = DoorBeacon(0, lockId, epoch).toFullPayload()
 
-        assertEquals(12, payload.size)
+        assertEquals(19, payload.size)
         assertEquals(
             (SmartKeyProtocol.MANUFACTURER_ID and 0xFF).toByte(), payload[0]
         )
         assertEquals(SmartKeyProtocol.DOOR_MAGIC, payload[2])
         assertEquals(SmartKeyProtocol.VERSION, payload[3])
-        assertEquals(0.toByte(), payload[11]) // reserved
+        assertEquals(0x08.toByte(), payload[11]) // local epoch, little endian
     }
 
     @Test
@@ -77,13 +81,13 @@ class DoorBeaconTest {
 
     @Test
     fun `a door beacon is never parsed as a phone beacon`() {
-        val door = DoorBeacon(SmartKeyProtocol.DOOR_FLAG_ENROLLED, lockId)
+        val door = DoorBeacon(SmartKeyProtocol.DOOR_FLAG_ENROLLED, lockId, epoch)
         assertNull(SmartKeyAdvertisement.parse(door.toFullPayload()))
     }
 
     @Test
     fun `rejects truncated, foreign and future payloads`() {
-        val valid = DoorBeacon(0, lockId).toFullPayload()
+        val valid = DoorBeacon(0, lockId, epoch).toFullPayload()
 
         assertNull("truncated", DoorBeacon.parse(valid.copyOfRange(0, 6)))
 
@@ -117,7 +121,7 @@ class DoorBeaconTest {
 
     @Test
     fun `a real beacon satisfies the offloaded filter`() {
-        val payload = DoorBeacon(SmartKeyProtocol.DOOR_FLAG_ENROLLED, lockId)
+        val payload = DoorBeacon(SmartKeyProtocol.DOOR_FLAG_ENROLLED, lockId, epoch)
             .toManufacturerData()
 
         // Reproduces what the Bluetooth controller does with data + mask.
@@ -131,7 +135,7 @@ class DoorBeaconTest {
 
     @Test
     fun `an unenrolled door is distinguishable from an enrolled one`() {
-        val fresh = DoorBeacon.parse(DoorBeacon(0, lockId).toFullPayload())
+        val fresh = DoorBeacon.parse(DoorBeacon(0, lockId, epoch).toFullPayload())
         assertNotNull(fresh)
         assertFalse(fresh!!.isEnrolled)
     }
@@ -139,7 +143,7 @@ class DoorBeaconTest {
     @Test
     fun `rejects a wrong sized lock id`() {
         try {
-            DoorBeacon(0, ByteArray(4))
+            DoorBeacon(0, ByteArray(4), epoch)
             org.junit.Assert.fail("expected IllegalArgumentException")
         } catch (expected: IllegalArgumentException) {
             // success
@@ -148,6 +152,6 @@ class DoorBeaconTest {
 
     @Test
     fun `shortId is stable lowercase hex`() {
-        assertEquals("deadbeef0102", DoorBeacon(0, lockId).shortId)
+        assertEquals("deadbeef0102", DoorBeacon(0, lockId, epoch).shortId)
     }
 }

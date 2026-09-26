@@ -34,6 +34,22 @@ static inline uint32_t get_u32(const uint8_t *p)
            ((uint32_t)p[3] << 24);
 }
 
+static inline void put_u64(uint8_t *p, uint64_t v)
+{
+    for (size_t i = 0; i < 8; i++) {
+        p[i] = (uint8_t)(v >> (8 * i));
+    }
+}
+
+static inline uint64_t get_u64(const uint8_t *p)
+{
+    uint64_t value = 0;
+    for (size_t i = 0; i < 8; i++) {
+        value |= (uint64_t)p[i] << (8 * i);
+    }
+    return value;
+}
+
 /** Validate a parsed frame against the expected type and payload size. */
 static int check(const skp_frame_t *f, uint8_t type, uint16_t size)
 {
@@ -371,6 +387,7 @@ int skp_door_adv_parse(const uint8_t *data, size_t len, skp_door_adv_t *out)
     }
     out->flags = data[4];
     memcpy(out->lock_id, &data[5], SKP_DOOR_ID_SIZE);
+    out->local_epoch = get_u64(&data[11]);
     return SKP_OK;
 }
 
@@ -387,6 +404,6 @@ int skp_door_adv_build(const skp_door_adv_t *in, uint8_t *out, size_t out_size)
     out[3] = SKP_VERSION;
     out[4] = in->flags;
     memcpy(&out[5], in->lock_id, SKP_DOOR_ID_SIZE);
-    out[11] = 0; /* reserved, must be zero for future use */
+    put_u64(&out[11], in->local_epoch);
     return SKP_DOOR_PAYLOAD_SIZE;
 }

@@ -9,6 +9,7 @@ import android.bluetooth.le.BluetoothLeAdvertiser
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import com.example.smart_key.data.Credential
 import com.example.smart_key.protocol.SmartKeyAdvertisement
@@ -36,6 +37,13 @@ class SmartKeyAdvertiser(context: Context) {
     private var credentials: List<Credential> = emptyList()
     private var currentEpoch = -1L
     private var running = false
+    private var doorEpoch: DoorEpoch? = null
+
+    private class DoorEpoch(
+        val credential: Credential,
+        val epoch: Long,
+        val receivedAtMs: Long
+    )
 
     /** Extra state bits folded into the beacon flags. */
     var screenOn: Boolean = true
@@ -52,7 +60,7 @@ class SmartKeyAdvertiser(context: Context) {
     private val ticker = object : Runnable {
         override fun run() {
             if (!running) return
-            val epoch = SmartKeyCrypto.currentEpoch()
+            val epoch = currentDoorEpoch()
             if (epoch != currentEpoch) {
                 currentEpoch = epoch
                 restartAdvertising(epoch)
@@ -71,6 +79,9 @@ class SmartKeyAdvertiser(context: Context) {
      */
     fun start(credentials: List<Credential>) {
         this.credentials = credentials
+        doorEpoch = doorEpoch?.takeIf { target ->
+            credentials.any { it.lockId.contentEquals(target.credential.lockId) }
+        }
         if (credentials.isEmpty()) {
             stop()
             return
@@ -85,6 +96,12 @@ class SmartKeyAdvertiser(context: Context) {
         handler.post(ticker)
     }
 
+    /** Target the saved door that supplied [epoch], advancing it by elapsed time. */
+    fun setDoorEpoch(credential: Credential, epoch: Long) {
+        doorEpoch = DoorEpoch(credential, epoch, SystemClock.elapsedRealtime())
+        currentEpoch = -1L
+    }
+
     fun stop() {
         running = false
         handler.removeCallbacks(ticker)
@@ -94,7 +111,7 @@ class SmartKeyAdvertiser(context: Context) {
 
     /** Rebuild the payload and restart the advertisement. */
     private fun restartAdvertising(epoch: Long) {
-        val credential = credentials.firstOrNull() ?: return
+        val credential = doorEpoch?.credential ?: credentials.firstOrNull() ?: return
         runCatching { advertiser?.stopAdvertising(callback) }
 
         val beacon = SmartKeyAdvertisement.forEpoch(
@@ -124,6 +141,14 @@ class SmartKeyAdvertiser(context: Context) {
 
         advertiser?.startAdvertising(settings, data, callback)
         Log.d(TAG, "advertising epoch $epoch for lock ${credential.shortId}")
+    }
+
+    private fun currentDoorEpoch(): Long {
+        val target = doorEpoch ?: return SmartKeyCrypto.currentEpoch()
+        val elapsedEpochs =
+            (SystemClock.elapsedRealtime() - target.receivedAtMs) /
+                (SmartKeyCrypto.BEACON_EPOCH_SECONDS * 1000)
+        return target.epoch + elapsedEpochs
     }
 
     companion object {

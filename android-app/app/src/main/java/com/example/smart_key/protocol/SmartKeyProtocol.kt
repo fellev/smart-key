@@ -42,7 +42,7 @@ object SmartKeyProtocol {
 
     const val BATTERY_UNKNOWN = 0xFF
 
-    // --- door beacon (protocol-spec.md §2.4) --------------------------------
+    // --- door beacon (protocol-spec.md §2.2) --------------------------------
     /**
      * Beacon emitted by the *door*, used only to recover a killed presence
      * service.
@@ -56,8 +56,9 @@ object SmartKeyProtocol {
      */
     const val DOOR_MAGIC: Byte = 0x44
     /** Payload size *excluding* the company id, which Android prepends. */
-    const val DOOR_DATA_SIZE = 10
+    const val DOOR_DATA_SIZE = 17
     const val DOOR_ID_SIZE = 6
+    const val DOOR_EPOCH_SIZE = 8
 
     const val DOOR_FLAG_PAIRING = 0x01
     const val DOOR_FLAG_ENROLLED = 0x02

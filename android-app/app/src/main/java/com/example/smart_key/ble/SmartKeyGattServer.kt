@@ -29,6 +29,7 @@ class SmartKeyGattServer(
 ) {
     /** Events the service layer cares about. */
     interface Listener {
+        fun onReady()
         fun onAuthenticated(credential: Credential)
         fun onDisconnected()
         fun onUnlock(result: Int)
@@ -39,6 +40,7 @@ class SmartKeyGattServer(
     private var statusCharacteristic: BluetoothGattCharacteristic? = null
     private var pairingCharacteristic: BluetoothGattCharacteristic? = null
     private var connectedDevice: BluetoothDevice? = null
+    private var ready = false
 
     private var engine = HandshakeEngine(emptyList())
 
@@ -57,6 +59,7 @@ class SmartKeyGattServer(
             return
         }
         gattServer = server
+        ready = false
 
         val service = BluetoothGattService(
             SmartKeyProtocol.SERVICE_UUID,
@@ -74,7 +77,12 @@ class SmartKeyGattServer(
         service.addCharacteristic(control)
         service.addCharacteristic(status)
         service.addCharacteristic(pairing)
-        server.addService(service)
+        if (!server.addService(service)) {
+            Log.e(TAG, "could not add the SmartKey service")
+            server.close()
+            gattServer = null
+            return
+        }
 
         statusCharacteristic = status
         pairingCharacteristic = pairing
@@ -106,6 +114,7 @@ class SmartKeyGattServer(
     fun stop() {
         engine.reset()
         connectedDevice = null
+        ready = false
         runCatching { gattServer?.close() }
         gattServer = null
         Log.i(TAG, "GATT server stopped")
@@ -121,11 +130,25 @@ class SmartKeyGattServer(
         val device = connectedDevice ?: return false
         val chr = characteristic ?: return false
         val server = gattServer ?: return false
-        return server.notifyCharacteristicChanged(device, chr, false, frame.encode()) ==
-            BluetoothGatt.GATT_SUCCESS
+        val result = server.notifyCharacteristicChanged(device, chr, false, frame.encode())
+        if (result != BluetoothGatt.GATT_SUCCESS) {
+            Log.w(TAG, "notification for $frame rejected with status $result")
+        }
+        return result == BluetoothGatt.GATT_SUCCESS
     }
 
     private val callback = object : BluetoothGattServerCallback() {
+
+        override fun onServiceAdded(status: Int, service: BluetoothGattService) {
+            if (service.uuid != SmartKeyProtocol.SERVICE_UUID) return
+            if (status != BluetoothGatt.GATT_SUCCESS) {
+                Log.e(TAG, "SmartKey service registration failed ($status)")
+                return
+            }
+            ready = true
+            Log.i(TAG, "SmartKey service ready")
+            listener.onReady()
+        }
 
         override fun onConnectionStateChange(device: BluetoothDevice, status: Int, newState: Int) {
             if (newState == BluetoothProfile.STATE_CONNECTED) {
@@ -176,8 +199,12 @@ class SmartKeyGattServer(
 
     /** Run one CONTROL frame through the handshake engine and act on the result. */
     private fun handleControl(value: ByteArray) {
+        Log.d(TAG, "CONTROL write: ${value.size} bytes")
         when (val outcome = engine.onFrame(value)) {
-            is HandshakeEngine.Outcome.Reply -> notifyStatus(outcome.frame)
+            is HandshakeEngine.Outcome.Reply -> {
+                Log.d(TAG, "replying with ${outcome.frame}")
+                notifyStatus(outcome.frame)
+            }
 
             is HandshakeEngine.Outcome.Authenticated ->
                 listener.onAuthenticated(outcome.credential)

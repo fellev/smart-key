@@ -115,7 +115,9 @@ absolute guarantee: vendor battery managers — Samsung's "Deep Sleeping" list i
 stop apps anyway. When that happens presence dies **silently**, and the user only discovers it
 while standing at a door that will not light up.
 
-This beacon lets the door announce itself so a phone in that state can repair itself.
+This beacon lets the door announce itself so a phone in that state can repair itself. It also
+shares the door's local beacon epoch, so the phone can generate the rolling pseudonym without
+the door needing wall-clock time.
 
 #### Why the identifier is static
 
@@ -123,7 +125,7 @@ This is the opposite choice from §2.2, and deliberately so:
 
 | | phone beacon (§2.1) | door beacon (§2.4) |
 |---|---|---|
-| identifier | rotates every 15 s | **static** |
+| identifier | rotates every 15 s | **static prefix** |
 | reason | a phone in a pocket must not be trackable | a door is bolted to a wall and already has a fixed, public location |
 | consequence | cannot be matched by an offloaded filter | **can** be pushed into the Bluetooth controller |
 
@@ -144,8 +146,8 @@ AD type 0xFF, Company ID 0xFFFF
    3      1   skp_version           = 0x01
    4      1   flags                 (see below)
    5      6   lock_id[0..5]         first 6 bytes of the lock id, static
-  11      1   reserved              = 0x00
-                                                         total AD payload = 12 bytes
+  11      8   local_epoch            uint64 LE
+                                                         total AD payload = 19 bytes
 ```
 
 The magic byte is the only thing separating this from a phone beacon, so parsers on both
@@ -163,6 +165,10 @@ sides **must** reject the other type rather than mis-parsing it.
   a low-power background scan.
 * Suspended while a pairing window is open (the pairing advertisement takes the radio) and,
   by default, while any phone is connected (there is then nobody to wake).
+* `local_epoch = floor(ESP32_uptime_seconds / 15)`. On receipt, a phone selects the credential
+  matching `lock_id[0..5]`, calculates its pseudonym for `local_epoch`, and advances the epoch
+  from its own monotonic elapsed time until the next door beacon refreshes it. This deliberately
+  requires no RTC, NTP, or internet connectivity on the door.
 
 #### What it is not
 

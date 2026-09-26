@@ -1,7 +1,9 @@
 package com.example.smart_key.pairing
 
+import android.util.Log
 import com.example.smart_key.protocol.Frame
 import com.example.smart_key.protocol.PairResponse
+import com.example.smart_key.protocol.ProtocolException
 import com.example.smart_key.protocol.PairResult
 import com.example.smart_key.protocol.PairStart
 import com.example.smart_key.protocol.SmartKeyCrypto
@@ -52,7 +54,14 @@ class PairingSession(
     /** First frame to send once connected to the lock. */
     fun start(): Frame = PairStart(userId, publicKeyP, nonceP).toFrame()
 
-    /** Feed a frame received from the lock. */
+    /**
+     * Feed a frame received from the lock.
+     *
+     * The failure message deliberately includes the underlying reason. A bare
+     * "malformed response" hides the single most common real cause — a
+     * notification truncated by a small ATT MTU — behind wording that suggests
+     * a protocol bug instead.
+     */
     fun onFrame(data: ByteArray): Step = try {
         val frame = Frame.decode(data)
         when (frame.type) {
@@ -60,8 +69,12 @@ class PairingSession(
             SmartKeyProtocol.FrameType.PAIR_RESULT -> onPairResult(frame)
             else -> Step.Waiting
         }
+    } catch (e: ProtocolException) {
+        Log.w(TAG, "could not decode a ${data.size} byte frame", e)
+        Step.Failure("Bad response from the door unit: ${e.message}")
     } catch (e: Exception) {
-        Step.Failure("Malformed response from the door unit")
+        Log.w(TAG, "pairing step failed on a ${data.size} byte frame", e)
+        Step.Failure("Pairing failed: ${e.message ?: e.javaClass.simpleName}")
     }
 
     /**
@@ -126,5 +139,9 @@ class PairingSession(
         ltk?.let { SmartKeyCrypto.wipe(it) }
         ltk = null
         lockId = null
+    }
+
+    private companion object {
+        const val TAG = "PairingSession"
     }
 }

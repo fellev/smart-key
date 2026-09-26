@@ -34,12 +34,15 @@ class ScanRecoveryReceiver : BroadcastReceiver() {
             return
         }
 
-        if (!isOurDoor(intent)) return
+        val beacon = findDoorBeacon(intent) ?: return
 
         // Only act if the user actually has a door paired, otherwise the
         // service would immediately stop itself again.
-        if (CredentialStore(context.applicationContext).all().isEmpty()) {
-            Log.d(TAG, "door seen but no credentials, ignoring")
+        val paired = CredentialStore(context.applicationContext).all().any {
+            it.lockId.copyOfRange(0, SmartKeyProtocol.DOOR_ID_SIZE).contentEquals(beacon.lockId)
+        }
+        if (!paired) {
+            Log.d(TAG, "unpaired door beacon seen, ignoring")
             return
         }
 
@@ -51,16 +54,12 @@ class ScanRecoveryReceiver : BroadcastReceiver() {
         //
         // Both are a startForegroundService() with a different action, so a
         // cold start and a warm notification take the same path.
-        val running = PresenceService.state.value != PresenceService.State.STOPPED
-        val action = if (running) {
-            PresenceService.ACTION_DOOR_SEEN
-        } else {
-            PresenceService.ACTION_START
-        }
-        Log.i(TAG, "door beacon seen, sending $action")
+        Log.i(TAG, "door beacon seen, sending ${PresenceService.ACTION_DOOR_SEEN}")
 
         val start = Intent(context, PresenceService::class.java).apply {
-            this.action = action
+            action = PresenceService.ACTION_DOOR_SEEN
+            putExtra(PresenceService.EXTRA_DOOR_ID_PREFIX, beacon.lockId)
+            putExtra(PresenceService.EXTRA_DOOR_EPOCH, beacon.localEpoch)
         }
         ContextCompat.startForegroundService(context.applicationContext, start)
     }
@@ -72,14 +71,15 @@ class ScanRecoveryReceiver : BroadcastReceiver() {
      * are re-parsed here rather than trusted: a malformed or spoofed
      * advertisement must not be able to drive our service lifecycle.
      */
-    private fun isOurDoor(intent: Intent): Boolean {
-        val results = extractResults(intent) ?: return false
-        return results.any { result ->
+    private fun findDoorBeacon(intent: Intent): DoorBeacon? {
+        val results = extractResults(intent) ?: return null
+        for (result in results) {
             val raw = result.scanRecord
                 ?.getManufacturerSpecificData(SmartKeyProtocol.MANUFACTURER_ID)
-                ?: return@any false
-            DoorBeacon.parseWithoutCompanyId(raw) != null
+                ?: continue
+            DoorBeacon.parseWithoutCompanyId(raw)?.let { return it }
         }
+        return null
     }
 
     @Suppress("DEPRECATION")

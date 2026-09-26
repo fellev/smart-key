@@ -67,6 +67,50 @@ Two smaller v6 changes are already in place and are harmless on 5.5:
 `smartkey_io` depends on `esp_driver_gpio` rather than the old monolithic
 `driver` component, which 6.x no longer re-exports.
 
+## Testing on an ESP32-C3 (or other non-Zigbee target)
+
+The C3 has BLE 5 but **no 802.15.4 radio**, so it cannot run the Zigbee half.
+Everything else works, which makes it a useful board for developing the
+presence logic when no C5 or coordinator is to hand.
+
+```bash
+idf.py set-target esp32c3
+idf.py build flash monitor
+```
+
+`CONFIG_SMARTKEY_ZIGBEE_ENABLED` defaults to `n` when the target has no
+802.15.4 radio, so `smartkey_zigbee` compiles to its logging stub
+automatically — no menuconfig needed. The binary is ~40 % smaller as a result.
+
+### What works on a C3
+
+| | Works | Notes |
+|---|---|---|
+| Phone beacon detection, pseudonym matching | yes | the whole §2 path |
+| Connect, GATT discovery, mutual handshake | yes | identical code |
+| Proximity gate: median filter, `LINGERING` ↔ `GRANTED` | yes | **`rssi` calibration is valid here** |
+| LED and button, pairing hold, factory reset | yes | same GPIO driver |
+| BLE pairing, credential storage in NVS | yes | |
+| Door beacon + `scanstats` | yes | worth measuring: the C3 radio is busier than the C5's |
+| Post-unlock release and re-arm | yes | the departure logic is BLE-only |
+| Console (`status`, `rssi`, `scanstats`, `users`, ...) | yes | `status` reports zigbee `DISABLED` |
+| **Zigbee join / HA detection** | **no** | no radio |
+| **Actually opening the door** | **no** | `skz_send_unlock()` logs `[stub] unlock command` |
+
+So the C3 exercises the entire chain up to and including "the button was
+pressed and accepted" — only the final Zigbee hop is stubbed. `skz_ready()`
+returns `true` in the stub precisely so the rest of the flow stays testable,
+and the app still receives `UNLOCK_EVENT` with `result = OK`.
+
+### Two caveats
+
+* **RSSI thresholds are board-specific.** The C3's antenna and TX power differ
+  from the C5's, so numbers calibrated on a C3 will need re-checking on the
+  real hardware. Re-run `rssi 30` after switching.
+* **The unlock path is never proven.** A C3 reports success without any relay
+  actuating, so `on_zigbee_result()` is driven by the stub rather than a real
+  APS acknowledgement. Zigbee binding and HA behaviour must be tested on a C5.
+
 ## Unit tests (no hardware)
 
 `smartkey_proto` deliberately has no ESP-IDF dependency, so it compiles on the

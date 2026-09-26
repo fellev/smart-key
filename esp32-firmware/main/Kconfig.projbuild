@@ -258,10 +258,16 @@ menu "SmartKey door unit"
     menu "Zigbee"
         config SMARTKEY_ZIGBEE_ENABLED
             bool "Enable the Zigbee end device"
-            default y
+            default y if SOC_IEEE802154_SUPPORTED
+            default n
             help
                 Disable to build and test the BLE presence logic without a Zigbee
                 coordinator; unlock requests are then only logged.
+
+                Defaults to off on targets with no 802.15.4 radio (ESP32-C3,
+                -S3, ...), where the Zigbee stack is not available at all. That
+                makes the whole BLE half of the project — presence, proximity,
+                pairing, the console — testable on a plain C3 dev board.
 
         config SMARTKEY_ZIGBEE_USE_TOGGLE
             bool "Send Toggle instead of On"

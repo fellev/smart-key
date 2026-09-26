@@ -30,6 +30,15 @@ class PairingFragment : Fragment(), PairingClient.Listener {
     private lateinit var store: CredentialStore
     private var client: PairingClient? = null
 
+    /**
+     * Door label captured when pairing starts.
+     *
+     * Read here rather than in onSuccess(), because that callback arrives on a
+     * BLE thread where touching a View is illegal and the binding may already
+     * be null.
+     */
+    private var pendingLabel: String = "Door"
+
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { granted ->
@@ -82,6 +91,14 @@ class PairingFragment : Fragment(), PairingClient.Listener {
 
     private fun beginPairing() {
         val code = binding.pairingCode.text?.toString().orEmpty()
+        // Re-validate: the permission round trip means this can run long after
+        // onStartClicked(), and the user may have edited the field since.
+        if (code.length != SmartKeyProtocol.PAIRING_CODE_LEN || !code.all { it.isDigit() }) {
+            showStatus(getString(R.string.pairing_code_invalid))
+            return
+        }
+        pendingLabel = binding.doorLabel.text?.toString()?.takeIf { it.isNotBlank() } ?: "Door"
+
         val session = PairingSession(userId = store.userId, pairingCode = code)
         setBusy(true)
         client = PairingClient(requireContext().applicationContext, session, this).also {
@@ -90,31 +107,54 @@ class PairingFragment : Fragment(), PairingClient.Listener {
     }
 
     // ---------------------------------------------- PairingClient.Listener
+    //
+    // These arrive on a BLE binder thread at arbitrary times, including after
+    // the fragment has been detached (user navigated away, screen rotated, or
+    // a previous callback already popped the back stack).
+    //
+    // requireActivity() would then throw IllegalStateException on a non-UI
+    // thread, where nothing catches it — killing the whole process. So every
+    // callback hops to the UI thread through a view that may legitimately be
+    // gone, and does nothing if it is.
 
-    override fun onProgress(message: String) {
-        requireActivity().runOnUiThread { showStatus(message) }
+    /**
+     * Run [block] on the UI thread, but only if the fragment is still attached
+     * and its view alive. Silently drops the update otherwise.
+     */
+    private fun onUi(block: () -> Unit) {
+        val view = _binding?.root ?: return
+        view.post {
+            // Re-check: the fragment may have been torn down between posting
+            // and running.
+            if (_binding == null || !isAdded) return@post
+            block()
+        }
     }
 
+    override fun onProgress(message: String) = onUi { showStatus(message) }
+
     override fun onSuccess(lockId: ByteArray, ltk: ByteArray, slot: Int) {
-        val label = binding.doorLabel.text?.toString()?.takeIf { it.isNotBlank() } ?: "Door"
-        // Only the derived sub keys are persisted; the raw LTK is wiped here.
+        // Persist before touching the UI: the credential must survive even if
+        // this fragment is already gone, otherwise a pairing that the door
+        // considers complete would be lost on our side.
+        val label = pendingLabel
         store.add(lockId, ltk, label)
         SmartKeyCrypto.wipe(ltk)
 
-        requireActivity().runOnUiThread {
+        onUi {
             setBusy(false)
             client = null
             Snackbar.make(binding.root, "Paired with $label", Snackbar.LENGTH_LONG).show()
-            findNavController().popBackStack()
+            // Guard against popping twice if a late callback arrives.
+            findNavController().takeIf { it.currentDestination?.id == R.id.PairingFragment }
+                ?.popBackStack()
         }
     }
 
-    override fun onFailure(message: String) {
-        requireActivity().runOnUiThread {
-            setBusy(false)
-            client = null
-            showStatus(message)
-        }
+    override fun onFailure(message: String) = onUi {
+        setBusy(false)
+        client = null
+        showStatus(message)
     }
 
     private fun setBusy(busy: Boolean) {

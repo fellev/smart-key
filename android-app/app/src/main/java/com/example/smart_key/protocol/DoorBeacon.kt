@@ -1,7 +1,10 @@
 package com.example.smart_key.protocol
 
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+
 /**
- * Beacon broadcast by a door unit (protocol-spec.md §2.4).
+ * Beacon broadcast by a door unit (protocol-spec.md §2.2).
  *
  * This is **not** part of the normal unlock path. The door always initiates
  * the session by connecting to the phone; this beacon exists purely so a phone
@@ -19,7 +22,8 @@ package com.example.smart_key.protocol
  */
 class DoorBeacon(
     val flags: Int,
-    val lockId: ByteArray
+    val lockId: ByteArray,
+    val localEpoch: Long
 ) {
     init {
         require(lockId.size == SmartKeyProtocol.DOOR_ID_SIZE) {
@@ -39,12 +43,16 @@ class DoorBeacon(
     val shortId: String
         get() = lockId.joinToString("") { "%02x".format(it) }
 
-    /** Bytes after the company id: magic, version, flags, lock id, reserved. */
-    fun toManufacturerData(): ByteArray = byteArrayOf(
-        SmartKeyProtocol.DOOR_MAGIC,
-        SmartKeyProtocol.VERSION,
-        flags.toByte()
-    ) + lockId + byteArrayOf(0)
+    /** Bytes after the company id: magic, version, flags, lock id, local epoch. */
+    fun toManufacturerData(): ByteArray = ByteBuffer
+        .allocate(SmartKeyProtocol.DOOR_DATA_SIZE)
+        .order(ByteOrder.LITTLE_ENDIAN)
+        .put(SmartKeyProtocol.DOOR_MAGIC)
+        .put(SmartKeyProtocol.VERSION)
+        .put(flags.toByte())
+        .put(lockId)
+        .putLong(localEpoch)
+        .array()
 
     /** Full payload including the little endian company id. */
     fun toFullPayload(): ByteArray = byteArrayOf(
@@ -68,7 +76,10 @@ class DoorBeacon(
             if (data[3] != SmartKeyProtocol.VERSION) return null
             return DoorBeacon(
                 flags = data[4].toInt() and 0xFF,
-                lockId = data.copyOfRange(5, 11)
+                lockId = data.copyOfRange(5, 11),
+                localEpoch = ByteBuffer.wrap(data, 11, SmartKeyProtocol.DOOR_EPOCH_SIZE)
+                    .order(ByteOrder.LITTLE_ENDIAN)
+                    .long
             )
         }
 
@@ -83,7 +94,10 @@ class DoorBeacon(
             if (data[1] != SmartKeyProtocol.VERSION) return null
             return DoorBeacon(
                 flags = data[2].toInt() and 0xFF,
-                lockId = data.copyOfRange(3, 9)
+                lockId = data.copyOfRange(3, 9),
+                localEpoch = ByteBuffer.wrap(data, 9, SmartKeyProtocol.DOOR_EPOCH_SIZE)
+                    .order(ByteOrder.LITTLE_ENDIAN)
+                    .long
             )
         }
 
