@@ -3,21 +3,21 @@ menu "SmartKey door unit"
     menu "Hardware"
         config SMARTKEY_LED_GPIO
             int "Permission LED GPIO"
-            default 8
+            default 27
             range 0 48
             help
                 Drives the LED that indicates "you may open this door".
 
         config SMARTKEY_LED_ACTIVE_LOW
             bool "Permission LED is active low"
-            default n
+            default y
             help
                 Many dev boards wire the on-board LED to 3V3, so driving the pin low
                 turns it on. Enable this for those boards.
 
         config SMARTKEY_BUTTON_GPIO
             int "Unlock button GPIO"
-            default 9
+            default 28
             range 0 48
             help
                 Button to ground; the internal pull-up is enabled.

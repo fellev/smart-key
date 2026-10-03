@@ -138,8 +138,8 @@ python3 test/host/sync_vectors.py
 
 | Option | Default | Notes |
 |--------|---------|-------|
-| `SMARTKEY_LED_GPIO` | 8 | Permission LED; `..._ACTIVE_LOW` for boards that sink the LED |
-| `SMARTKEY_BUTTON_GPIO` | 9 | Button to ground, internal pull-up |
+| `SMARTKEY_LED_GPIO` | 27 | XIAO ESP32-C5 USER LED (active-low) |
+| `SMARTKEY_BUTTON_GPIO` | 28 | XIAO ESP32-C5 BOOT button, active-low with internal pull-up |
 | `SMARTKEY_RSSI_ENTER_DBM` | -70 | Start the *connection* above this (~2–3 m) |
 | `SMARTKEY_RSSI_EXIT_DBM` | -85 | Drop the connection entirely below this |
 | `SMARTKEY_PROXIMITY_NEAR_DBM` | -60 | **LED on** above this filtered level (~1 m) |

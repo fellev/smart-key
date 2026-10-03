@@ -1,7 +1,7 @@
 {
   "idf.currentSetup": "/home/felix/esp/v5.5.1/esp-idf",
   "idf.customExtraVars": {
-    "IDF_TARGET": "esp32c3"
+    "IDF_TARGET": "esp32c5"
   },
   "clangd.path": "/home/felix/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clangd",
   "clangd.arguments": [
@@ -10,7 +10,7 @@
     "--compile-commands-dir=/home/felix/work/smart-key/esp32-firmware/build"
   ],
   "idf.openOcdConfigs": [
-    "board/esp32c3-ftdi.cfg"
+    "board/esp32c5-ftdi.cfg"
   ],
   "idf.flashType": "UART",
   "idf.port": "/dev/ttyACM0"

@@ -95,8 +95,11 @@ void esp_zb_app_signal_handler(esp_zb_app_signal_t *signal_struct)
                      esp_zb_get_current_channel());
             s_state = SKZ_STATE_JOINED;
         } else {
-            ESP_LOGW(TAG, "network steering failed (%s), retrying in 3 s",
-                     esp_err_to_name(err_status));
+            esp_zb_bdb_commissioning_status_t commissioning_status =
+                esp_zb_get_bdb_commissioning_status();
+            ESP_LOGW(TAG,
+                     "network steering failed (%s, BDB status %d), retrying in 3 s",
+                     esp_err_to_name(err_status), (int)commissioning_status);
             s_state = SKZ_STATE_JOINING;
             esp_zb_scheduler_alarm(retry_commissioning,
                                    ESP_ZB_BDB_MODE_NETWORK_STEERING, 3000);
