@@ -19,18 +19,7 @@ import org.json.JSONObject
  */
 class CredentialStore(context: Context) {
 
-    private val prefs: SharedPreferences = run {
-        val masterKey = MasterKey.Builder(context)
-            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-            .build()
-        EncryptedSharedPreferences.create(
-            context,
-            PREFS_NAME,
-            masterKey,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-        )
-    }
+    private val prefs: SharedPreferences = createEncryptedSharedPreferences(context.applicationContext)
 
     /**
      * The stable identity of this phone, shared by every door it pairs with.
@@ -38,16 +27,19 @@ class CredentialStore(context: Context) {
      */
     val userId: ByteArray
         get() {
-            prefs.getString(KEY_USER_ID, null)?.let { return it.hexToBytes() }
+            val stored = runCatching { prefs.getString(KEY_USER_ID, null) }.getOrNull()
+            if (stored != null) {
+                runCatching { return stored.hexToBytes() }
+            }
             val fresh = SmartKeyCrypto.randomBytes(SmartKeyProtocol.ID_SIZE)
-            prefs.edit().putString(KEY_USER_ID, fresh.toHex()).apply()
+            runCatching { prefs.edit().putString(KEY_USER_ID, fresh.toHex()).apply() }
             Log.i(TAG, "generated a new user identity")
             return fresh
         }
 
     /** All paired doors, newest first. */
     fun all(): List<Credential> {
-        val raw = prefs.getString(KEY_CREDENTIALS, null) ?: return emptyList()
+        val raw = runCatching { prefs.getString(KEY_CREDENTIALS, null) }.getOrNull() ?: return emptyList()
         return try {
             val array = JSONArray(raw)
             (0 until array.length())
@@ -139,5 +131,38 @@ class CredentialStore(context: Context) {
         private const val FIELD_K_BEACON = "k_beacon"
         private const val FIELD_LABEL = "label"
         private const val FIELD_PAIRED_AT = "paired_at"
+
+        private fun createEncryptedSharedPreferences(context: Context): SharedPreferences {
+            return try {
+                createPrefsInstance(context)
+            } catch (t: Throwable) {
+                Log.e(TAG, "Failed to initialize EncryptedSharedPreferences, clearing corrupted preferences and master key", t)
+                context.deleteSharedPreferences(PREFS_NAME)
+                runCatching {
+                    val keyStore = java.security.KeyStore.getInstance("AndroidKeyStore")
+                    keyStore.load(null)
+                    keyStore.deleteEntry(MasterKey.DEFAULT_MASTER_KEY_ALIAS)
+                }
+                try {
+                    createPrefsInstance(context)
+                } catch (t2: Throwable) {
+                    Log.e(TAG, "Failed to recreate EncryptedSharedPreferences, falling back to unencrypted SharedPreferences", t2)
+                    context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                }
+            }
+        }
+
+        private fun createPrefsInstance(context: Context): SharedPreferences {
+            val masterKey = MasterKey.Builder(context)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
+            return EncryptedSharedPreferences.create(
+                context,
+                PREFS_NAME,
+                masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+        }
     }
 }
