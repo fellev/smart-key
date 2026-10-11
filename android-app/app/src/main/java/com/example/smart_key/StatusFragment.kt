@@ -68,6 +68,8 @@ class StatusFragment : Fragment() {
         }
         binding.presenceToggle.setOnClickListener { togglePresence() }
 
+        autoStartPresenceIfPossible()
+
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 combine(PresenceService.state, PresenceService.warnings) { state, warning ->
@@ -85,8 +87,22 @@ class StatusFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         renderDoors()
+        autoStartPresenceIfPossible()
         render(PresenceService.state.value)
         showLastCrashIfAny()
+    }
+
+    private fun autoStartPresenceIfPossible() {
+        if (PresenceService.state.value == PresenceService.State.STOPPED) {
+            val hasDoors = store.all().isNotEmpty()
+            val hasPermissions = requiredPermissions.all {
+                ContextCompat.checkSelfPermission(requireContext(), it) ==
+                    PackageManager.PERMISSION_GRANTED
+            }
+            if (hasDoors && hasPermissions) {
+                PresenceService.start(requireContext())
+            }
+        }
     }
 
     /**

@@ -53,6 +53,13 @@ class SmartKeyGattServer(
 
     fun start(credentials: List<Credential>) {
         updateCredentials(credentials)
+        if (gattServer != null) {
+            Log.i(TAG, "GATT server already open, updated credentials (${credentials.size} doors)")
+            if (ready) {
+                listener.onReady()
+            }
+            return
+        }
         val manager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         val server = manager.openGattServer(context, callback) ?: run {
             Log.e(TAG, "could not open the GATT server")
@@ -192,7 +199,7 @@ class SmartKeyGattServer(
         ) {
             // Accept the CCCD write with which the door unit enables notifications.
             if (responseNeeded) {
-                gattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, null)
+                gattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, value)
             }
         }
     }
