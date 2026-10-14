@@ -155,6 +155,14 @@ static void handle_unlock_request(void)
         return;
     }
 
+    if (!skb_phone_near_now()) {
+        ESP_LOGW(TAG, "button pressed but live RSSI does not confirm phone proximity");
+        skio_led_set(SKIO_LED_BLINK_FAST);
+        vTaskDelay(pdMS_TO_TICKS(600));
+        skio_led_set(led_for_state(skb_state()));
+        return;
+    }
+
     if (!rate_limit_allows()) {
         skb_report_unlock(SKP_UNLOCK_RATE_LIMITED);
         return;

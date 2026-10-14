@@ -392,8 +392,8 @@ hysteresis** before deciding.
 
 | parameter | default | meaning |
 |-----------|---------|---------|
-| `CONFIG_SMARTKEY_PROXIMITY_NEAR_DBM` | `-60` | Median at/above this ⇒ LED on (~1 m) |
-| `CONFIG_SMARTKEY_PROXIMITY_FAR_DBM` | `-72` | Median below this ⇒ LED off (~2–3 m) |
+| `CONFIG_SMARTKEY_PROXIMITY_NEAR_DBM` | `-40` | Median at/above this ⇒ LED on |
+| `CONFIG_SMARTKEY_PROXIMITY_FAR_DBM` | `-52` | Median below this ⇒ LED off |
 | `CONFIG_SMARTKEY_PROXIMITY_WINDOW` | `5` | Samples in the median window |
 | `CONFIG_SMARTKEY_PROXIMITY_MIN_SAMPLES` | `3` | Required before the LED may ever turn on |
 | `CONFIG_SMARTKEY_PROXIMITY_POLL_MS` | `250` | Connection RSSI sampling period |
@@ -404,7 +404,7 @@ Why these are three separate distances:
 
 * **Connect early (`-70`)** — the handshake costs ~200 ms, so it is started
   while the user is still walking up. Its cost is hidden.
-* **Light the LED late (`-60`)** — the visible signal only appears when the user
+* **Light the LED very close (`-40`)** — the visible signal only appears when the user
   is actually at the door.
 * **Disconnect very late (`-85`)** — staying connected through the whole
   approach means re-entry never pays the handshake cost again.

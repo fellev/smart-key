@@ -142,8 +142,8 @@ python3 test/host/sync_vectors.py
 | `SMARTKEY_BUTTON_GPIO` | 28 | XIAO ESP32-C5 BOOT button, active-low with internal pull-up |
 | `SMARTKEY_RSSI_ENTER_DBM` | -70 | Start the *connection* above this (~2–3 m) |
 | `SMARTKEY_RSSI_EXIT_DBM` | -85 | Drop the connection entirely below this |
-| `SMARTKEY_PROXIMITY_NEAR_DBM` | -60 | **LED on** above this filtered level (~1 m) |
-| `SMARTKEY_PROXIMITY_FAR_DBM` | -72 | LED off below this; the gap is hysteresis |
+| `SMARTKEY_PROXIMITY_NEAR_DBM` | -40 | **LED on** above this filtered level |
+| `SMARTKEY_PROXIMITY_FAR_DBM` | -52 | LED off below this; the gap is hysteresis |
 | `SMARTKEY_PROXIMITY_WINDOW` | 5 | Samples in the median filter |
 | `SMARTKEY_PROXIMITY_MIN_SAMPLES` | 3 | Required before the LED may light |
 | `SMARTKEY_PROXIMITY_POLL_MS` | 250 | How fast the LED follows the user |

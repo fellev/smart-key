@@ -144,8 +144,8 @@
   },
   "proximity": {
     "$comment": "LED gate: the phone must be measured next to the board, not merely authenticated. See protocol-spec.md \u00a78.4.",
-    "nearDbm": -60,
-    "farDbm": -72,
+    "nearDbm": -40,
+    "farDbm": -52,
     "window": 5,
     "minSamples": 3,
     "pollMs": 250,

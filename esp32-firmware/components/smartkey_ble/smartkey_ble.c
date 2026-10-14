@@ -33,6 +33,8 @@ static const char *TAG = "sk_ble";
 #define SCAN_WINDOW_MS 60
 #define CONN_ITVL_FAST_MS 15
 #define CONN_ITVL_IDLE_MS 200
+#define UNLOCK_RSSI_SAMPLE_COUNT 5
+#define UNLOCK_RSSI_SAMPLE_INTERVAL_MS 40
 #define PSEUDO_TICK_MS 1000
 /**
  * Grace period before dropping the link after an unlock, so the UNLOCK_EVENT
@@ -321,6 +323,36 @@ bool skb_get_session(skb_session_t *out)
     out->filtered_rssi = skpx_median(&s_proximity);
     out->near = skpx_is_near(&s_proximity);
     return true;
+}
+
+bool skb_phone_near_now(void)
+{
+    if (s_state != SKB_STATE_GRANTED || !s_conn.authenticated ||
+        s_conn.conn_handle == BLE_HS_CONN_HANDLE_NONE || !skpx_is_near(&s_proximity)) {
+        return false;
+    }
+
+    int rssi_total = 0;
+    for (int sample = 0; sample < UNLOCK_RSSI_SAMPLE_COUNT; sample++) {
+        int8_t rssi = 0;
+        if (ble_gap_conn_rssi(s_conn.conn_handle, &rssi) != 0 || rssi == 0) {
+            return false;
+        }
+        rssi_total += rssi;
+        if (sample + 1 < UNLOCK_RSSI_SAMPLE_COUNT) {
+            vTaskDelay(pdMS_TO_TICKS(UNLOCK_RSSI_SAMPLE_INTERVAL_MS));
+        }
+    }
+
+    int average_rssi = rssi_total / UNLOCK_RSSI_SAMPLE_COUNT;
+    if (rssi_total < 0 && rssi_total % UNLOCK_RSSI_SAMPLE_COUNT != 0) {
+        average_rssi--; /* Round toward weaker signal when the average is fractional. */
+    }
+    ESP_LOGI(TAG, "button RSSI average %d dBm over %d samples", average_rssi,
+             UNLOCK_RSSI_SAMPLE_COUNT);
+
+    return s_state == SKB_STATE_GRANTED && s_conn.authenticated &&
+           skpx_is_near(&s_proximity) && average_rssi >= CONFIG_SMARTKEY_PROXIMITY_FAR_DBM;
 }
 
 /** Write a frame to the peer's CONTROL characteristic. */
