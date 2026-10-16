@@ -9,19 +9,45 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.smart_key"
+        applicationId = "com.smartkey.app"
         minSdk = 36
         targetSdk = 37
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        create("release") {
+            val keystorePath = project.findProperty("KEYSTORE_FILE") as? String
+                ?: System.getenv("KEYSTORE_FILE")
+            val kPassword = project.findProperty("KEYSTORE_PASSWORD") as? String
+                ?: System.getenv("KEYSTORE_PASSWORD")
+            val alias = project.findProperty("KEY_ALIAS") as? String
+                ?: System.getenv("KEY_ALIAS")
+            val keyPass = project.findProperty("KEY_PASSWORD") as? String
+                ?: System.getenv("KEY_PASSWORD")
+
+            if (keystorePath != null && kPassword != null && alias != null && keyPass != null) {
+                storeFile = file(keystorePath)
+                storePassword = kPassword
+                keyAlias = alias
+                keyPassword = keyPass
+            }
+        }
     }
 
     buildTypes {
         release {
             optimization {
                 enable = false
+            }
+            val releaseConfig = signingConfigs.getByName("release")
+            signingConfig = if (releaseConfig.storeFile?.exists() == true && releaseConfig.storePassword != null) {
+                releaseConfig
+            } else {
+                signingConfigs.getByName("debug")
             }
         }
     }
