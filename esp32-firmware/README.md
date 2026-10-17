@@ -139,6 +139,7 @@ python3 test/host/sync_vectors.py
 | Option | Default | Notes |
 |--------|---------|-------|
 | `SMARTKEY_LED_GPIO` | 27 | XIAO ESP32-C5 USER LED (active-low) |
+| `SMARTKEY_EXTERNAL_LED_GPIO` | 10 | External LED anode to 3.3 V, cathode to GPIO; mirrors onboard LED |
 | `SMARTKEY_BUTTON_GPIO` | 28 | XIAO ESP32-C5 BOOT button, active-low with internal pull-up |
 | `SMARTKEY_EXTERNAL_BUTTON_GPIO` | 25 | External button to ground, active-low with internal pull-up |
 | `SMARTKEY_RSSI_ENTER_DBM` | -70 | Start the *connection* above this (~2–3 m) |

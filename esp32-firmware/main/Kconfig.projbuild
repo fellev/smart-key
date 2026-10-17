@@ -8,6 +8,15 @@ menu "SmartKey door unit"
             help
                 Drives the LED that indicates "you may open this door".
 
+        config SMARTKEY_EXTERNAL_LED_GPIO
+            int "External permission LED GPIO"
+            default 10
+            range 0 48
+            help
+                Additional LED driven in sync with the onboard LED. Connect its
+                anode to 3.3 V and cathode to this GPIO; it follows the same
+                active-low setting.
+
         config SMARTKEY_LED_ACTIVE_LOW
             bool "Permission LED is active low"
             default y

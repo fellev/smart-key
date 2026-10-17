@@ -25,11 +25,14 @@ static void *s_cb_ctx;
 
 static inline void led_write(bool on)
 {
+    int level;
 #if CONFIG_SMARTKEY_LED_ACTIVE_LOW
-    gpio_set_level(CONFIG_SMARTKEY_LED_GPIO, on ? 0 : 1);
+    level = on ? 0 : 1;
 #else
-    gpio_set_level(CONFIG_SMARTKEY_LED_GPIO, on ? 1 : 0);
+    level = on ? 1 : 0;
 #endif
+    gpio_set_level(CONFIG_SMARTKEY_LED_GPIO, level);
+    gpio_set_level(CONFIG_SMARTKEY_EXTERNAL_LED_GPIO, level);
 }
 
 /** Map a blink state to its period; 0 means "steady". */
@@ -139,7 +142,8 @@ esp_err_t skio_init(skio_button_cb_t cb, void *ctx)
     s_cb_ctx = ctx;
 
     gpio_config_t led_cfg = {
-        .pin_bit_mask = 1ULL << CONFIG_SMARTKEY_LED_GPIO,
+        .pin_bit_mask = (1ULL << CONFIG_SMARTKEY_LED_GPIO) |
+                        (1ULL << CONFIG_SMARTKEY_EXTERNAL_LED_GPIO),
         .mode = GPIO_MODE_OUTPUT,
         .pull_up_en = GPIO_PULLUP_DISABLE,
         .pull_down_en = GPIO_PULLDOWN_DISABLE,
@@ -167,9 +171,10 @@ esp_err_t skio_init(skio_button_cb_t cb, void *ctx)
     if (xTaskCreate(io_task, "sk_io", 3072, NULL, 5, NULL) != pdPASS) {
         return ESP_ERR_NO_MEM;
     }
-    ESP_LOGI(TAG, "led gpio %d, onboard button gpio %d, external button gpio %d",
-             CONFIG_SMARTKEY_LED_GPIO, CONFIG_SMARTKEY_BUTTON_GPIO,
-             CONFIG_SMARTKEY_EXTERNAL_BUTTON_GPIO);
+    ESP_LOGI(TAG,
+             "onboard led gpio %d, external led gpio %d, onboard button gpio %d, external button gpio %d",
+             CONFIG_SMARTKEY_LED_GPIO, CONFIG_SMARTKEY_EXTERNAL_LED_GPIO,
+             CONFIG_SMARTKEY_BUTTON_GPIO, CONFIG_SMARTKEY_EXTERNAL_BUTTON_GPIO);
     return ESP_OK;
 }
 
