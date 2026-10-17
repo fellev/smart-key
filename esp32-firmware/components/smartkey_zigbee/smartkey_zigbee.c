@@ -83,7 +83,9 @@ void esp_zb_app_signal_handler(esp_zb_app_signal_t *signal_struct)
                          esp_zb_get_short_address());
             }
         } else {
-            ESP_LOGW(TAG, "stack start failed (%s), retrying", esp_err_to_name(err_status));
+            // s_state = SKZ_STATE_JOINING;
+            ESP_LOGW(TAG, "network join/rejoin failed (%s), retrying",
+                     esp_err_to_name(err_status));
             esp_zb_scheduler_alarm(retry_commissioning,
                                    ESP_ZB_BDB_MODE_INITIALIZATION, 1000);
         }
@@ -233,7 +235,7 @@ esp_err_t skz_send_unlock(void)
     s_last_tsn = esp_zb_zcl_on_off_cmd_req(&cmd);
     esp_zb_lock_release();
 
-    ESP_LOGI(TAG, "unlock command sent, tsn %u", s_last_tsn);
+    ESP_LOGI(TAG, "unlock command queued, tsn %u", s_last_tsn);
     return ESP_OK;
 }
 
