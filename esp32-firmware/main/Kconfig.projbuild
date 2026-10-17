@@ -22,6 +22,13 @@ menu "SmartKey door unit"
             help
                 Button to ground; the internal pull-up is enabled.
 
+        config SMARTKEY_EXTERNAL_BUTTON_GPIO
+            int "External unlock button GPIO"
+            default 25
+            range 0 48
+            help
+                Additional button to ground; the internal pull-up is enabled.
+
         config SMARTKEY_BUTTON_DEBOUNCE_MS
             int "Button debounce time (ms)"
             default 40

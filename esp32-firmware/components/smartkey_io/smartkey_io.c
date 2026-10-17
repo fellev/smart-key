@@ -74,7 +74,8 @@ static void update_button(uint32_t elapsed_ms)
     static bool pairing_fired;
 
     /* Active low: the button shorts the pin to ground. */
-    bool raw = gpio_get_level(CONFIG_SMARTKEY_BUTTON_GPIO) == 0;
+    bool raw = gpio_get_level(CONFIG_SMARTKEY_BUTTON_GPIO) == 0 ||
+               gpio_get_level(CONFIG_SMARTKEY_EXTERNAL_BUTTON_GPIO) == 0;
     if (raw != raw_last) {
         raw_last = raw;
         raw_since = elapsed_ms;
@@ -151,7 +152,8 @@ esp_err_t skio_init(skio_button_cb_t cb, void *ctx)
     led_write(false);
 
     gpio_config_t btn_cfg = {
-        .pin_bit_mask = 1ULL << CONFIG_SMARTKEY_BUTTON_GPIO,
+        .pin_bit_mask = (1ULL << CONFIG_SMARTKEY_BUTTON_GPIO) |
+                (1ULL << CONFIG_SMARTKEY_EXTERNAL_BUTTON_GPIO),
         .mode = GPIO_MODE_INPUT,
         .pull_up_en = GPIO_PULLUP_ENABLE,
         .pull_down_en = GPIO_PULLDOWN_DISABLE,
@@ -165,8 +167,9 @@ esp_err_t skio_init(skio_button_cb_t cb, void *ctx)
     if (xTaskCreate(io_task, "sk_io", 3072, NULL, 5, NULL) != pdPASS) {
         return ESP_ERR_NO_MEM;
     }
-    ESP_LOGI(TAG, "led gpio %d, button gpio %d", CONFIG_SMARTKEY_LED_GPIO,
-             CONFIG_SMARTKEY_BUTTON_GPIO);
+    ESP_LOGI(TAG, "led gpio %d, onboard button gpio %d, external button gpio %d",
+             CONFIG_SMARTKEY_LED_GPIO, CONFIG_SMARTKEY_BUTTON_GPIO,
+             CONFIG_SMARTKEY_EXTERNAL_BUTTON_GPIO);
     return ESP_OK;
 }
 
