@@ -308,16 +308,19 @@ within one proximity poll (~250 ms) with no new handshake.
 
 ## 6. Unlock reporting
 
-The physical button is wired to the door unit, so the unlock command never travels over
-BLE — a deliberate design decision (see `security-model.md` §3). BLE only tells the phone
-what happened so the app can show feedback.
+The physical button remains the only trigger, and the door unit accepts it only while an
+authenticated phone is measured nearby. The door reports that request over the authenticated
+BLE session; Android then calls its configured Home Assistant service over HTTPS. The phone
+acknowledges receipt of the event immediately. This keeps the button and proximity gate on
+the door while moving the Internet-bound command and Home Assistant token to Android.
 
 `UNLOCK_EVENT` (0x04), payload 46 bytes:
 
 ```
    0    8  session_id[8]
    8    4  counter (uint32 LE)   monotonic per session, starts at 1
-  12    1  result                0 = ok, 1 = zigbee error, 2 = not permitted, 3 = rate limited
+  12    1  result                0 = legacy ok, 1 = legacy zigbee error, 2 = not permitted,
+                                 3 = rate limited, 4 = physical-button open request
   13    1  reserved (0)
   14   32  tag[32] = HMAC-SHA256(K_sess, 0x10 || session_id || counter_le32 || result)
 ```
@@ -328,6 +331,11 @@ what happened so the app can show feedback.
    0    8  session_id[8]
    8    4  counter (uint32 LE)   echoes the acknowledged event
 ```
+
+For result `4`, Android invokes the configured Home Assistant service after verifying the
+event tag. The ACK means the request reached the app; it does not claim the door's physical
+state was independently verified. Android reports API success or failure in its UI and
+notification.
 
 ---
 

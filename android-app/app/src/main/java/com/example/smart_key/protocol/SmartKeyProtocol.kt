@@ -117,6 +117,7 @@ object SmartKeyProtocol {
         const val ZIGBEE_ERROR = 1
         const val NOT_PERMITTED = 2
         const val RATE_LIMITED = 3
+        const val REQUEST = 4
     }
 
     /** Result codes carried in PAIR_RESULT. */

@@ -14,15 +14,21 @@ import android.os.PowerManager
 import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.LifecycleService
 import com.example.smart_key.MainActivity
 import com.example.smart_key.R
 import com.example.smart_key.data.Credential
 import com.example.smart_key.data.CredentialStore
+import com.example.smart_key.data.HomeAssistantClient
+import com.example.smart_key.data.HomeAssistantSettings
 import com.example.smart_key.data.Settings
 import com.example.smart_key.protocol.SmartKeyProtocol
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Foreground service that keeps the presence beacon and GATT server alive.
@@ -39,10 +45,11 @@ class PresenceService : LifecycleService(), SmartKeyGattServer.Listener {
      * [LISTENING] is the listen-first resting state: the service is running
      * but the phone is transmitting nothing at all, waiting to hear a door.
      */
-    enum class State { STOPPED, LISTENING, ADVERTISING, CONNECTED, UNLOCKED }
+    enum class State { STOPPED, LISTENING, ADVERTISING, CONNECTED, OPENING, UNLOCKED }
 
     private lateinit var store: CredentialStore
     private lateinit var settings: Settings
+    private lateinit var homeAssistantSettings: HomeAssistantSettings
     private lateinit var advertiser: SmartKeyAdvertiser
     private lateinit var gattServer: SmartKeyGattServer
     private lateinit var gate: PresenceGate
@@ -57,6 +64,7 @@ class PresenceService : LifecycleService(), SmartKeyGattServer.Listener {
         super.onCreate()
         store = CredentialStore(applicationContext)
         settings = Settings(applicationContext)
+        homeAssistantSettings = HomeAssistantSettings(applicationContext)
         advertiser = SmartKeyAdvertiser(applicationContext)
         gattServer = SmartKeyGattServer(applicationContext, this)
         gate = PresenceGate(settings.presenceMode)
@@ -255,6 +263,26 @@ class PresenceService : LifecycleService(), SmartKeyGattServer.Listener {
     }
 
     override fun onUnlock(result: Int) {
+        if (result == SmartKeyProtocol.UnlockResult.REQUEST) {
+            _state.value = State.OPENING
+            _lastUnlockResult.value = result
+            updateNotification("Sending open command to Home Assistant")
+            lifecycleScope.launch {
+                try {
+                    val config = homeAssistantSettings.load()
+                        ?: throw IllegalStateException("Home Assistant is not configured")
+                    withContext(Dispatchers.IO) { HomeAssistantClient.callService(config) }
+                    _state.value = State.UNLOCKED
+                    updateNotification("Open command sent to Home Assistant")
+                } catch (error: Exception) {
+                    Log.w(TAG, "Home Assistant open request failed", error)
+                    _state.value = State.CONNECTED
+                    _warnings.value = getString(R.string.home_assistant_failed)
+                    updateNotification("Home Assistant command failed")
+                }
+            }
+            return
+        }
         _state.value = State.UNLOCKED
         _lastUnlockResult.value = result
         updateNotification(if (result == 0) "Door opened" else "The door could not be opened")

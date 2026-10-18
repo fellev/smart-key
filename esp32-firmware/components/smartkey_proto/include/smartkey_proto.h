@@ -113,6 +113,7 @@ typedef enum {
     SKP_UNLOCK_ZIGBEE_ERROR = 1,
     SKP_UNLOCK_NOT_PERMITTED = 2,
     SKP_UNLOCK_RATE_LIMITED = 3,
+    SKP_UNLOCK_REQUEST = 4,
 } skp_unlock_result_t;
 
 /** Pairing result codes carried in PAIR_RESULT. */

@@ -17,7 +17,6 @@
 #include "smartkey_ble.h"
 #include "smartkey_io.h"
 #include "smartkey_store.h"
-#include "smartkey_zigbee.h"
 
 static const char *TAG = "sk_console";
 
@@ -41,22 +40,6 @@ static const char *state_name(skb_state_t state)
     }
 }
 
-static const char *zigbee_state_name(skz_state_t state)
-{
-    switch (state) {
-    case SKZ_STATE_DISABLED:
-        return "disabled";
-    case SKZ_STATE_INIT:
-        return "initialising";
-    case SKZ_STATE_JOINING:
-        return "joining";
-    case SKZ_STATE_JOINED:
-        return "joined";
-    default:
-        return "?";
-    }
-}
-
 static int cmd_status(int argc, char **argv)
 {
     (void)argc;
@@ -69,7 +52,6 @@ static int cmd_status(int argc, char **argv)
     }
     printf("\nprotocol : SKP1 v%d\n", SKP_VERSION);
     printf("presence : %s\n", state_name(skb_state()));
-    printf("zigbee   : %s\n", zigbee_state_name(skz_state()));
     printf("led      : %d\n", (int)skio_led_get());
     printf("users    : %u/%u\n", (unsigned)sks_count(), (unsigned)sks_capacity());
 
@@ -274,7 +256,6 @@ static int cmd_reset(int argc, char **argv)
     (void)argv;
     printf("erasing all credentials and rebooting\n");
     sks_erase_all();
-    skz_factory_reset();
     esp_restart();
     return 0;
 }
@@ -287,7 +268,7 @@ void smartkey_console_start(void)
     repl_config.max_cmdline_length = 128;
 
     const esp_console_cmd_t commands[] = {
-        {.command = "status", .help = "Show lock, presence and Zigbee status", .func = cmd_status},
+        {.command = "status", .help = "Show lock and presence status", .func = cmd_status},
         {.command = "users", .help = "List the paired phones", .func = cmd_users},
         {.command = "rssi",
          .help = "Live proximity readout for tuning: rssi [seconds]",

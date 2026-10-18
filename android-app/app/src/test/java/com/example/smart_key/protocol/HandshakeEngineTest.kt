@@ -190,6 +190,25 @@ class HandshakeEngineTest {
     }
 
     @Test
+    fun `a physical button request is authenticated and acknowledged`() {
+        val engine = engine()
+        val (session, _) = completeHandshake(engine)
+        val request = SmartKeyProtocol.UnlockResult.REQUEST
+        val event = UnlockEvent(
+            sessionId = session.sessionId,
+            counter = 2,
+            result = request,
+            tag = SmartKeyCrypto.unlockTag(session.sessionKey, session.sessionId, 2, request)
+        ).toFrame().encode()
+
+        val outcome = engine.onFrame(event)
+        assertTrue(outcome is HandshakeEngine.Outcome.Unlock)
+        outcome as HandshakeEngine.Outcome.Unlock
+        assertEquals(request, outcome.result)
+        assertEquals(2, UnlockAck.parse(outcome.reply).counter)
+    }
+
+    @Test
     fun `a forged unlock event is ignored`() {
         val engine = engine()
         val (session, _) = completeHandshake(engine)

@@ -221,7 +221,7 @@ def main():
     check("doorIdLength", c["SKP_DOOR_ID_SIZE"], kt["DOOR_ID_SIZE"],
           schema["ble"]["doorIdLength"])
         check("doorEpochSize", c["SKP_DOOR_EPOCH_SIZE"], kt["DOOR_EPOCH_SIZE"],
-                    schema["ble"]["doorEpochSize"])
+            schema["ble"]["doorEpochSize"])
     for name, c_key, kt_key in (
         ("PAIRING", "SKP_DOOR_FLAG_PAIRING", "DOOR_FLAG_PAIRING"),
         ("ENROLLED", "SKP_DOOR_FLAG_ENROLLED", "DOOR_FLAG_ENROLLED"),

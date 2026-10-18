@@ -4,9 +4,9 @@
 
 | asset | why it matters |
 |-------|----------------|
-| `LTK` (per lock+user) | Holding it lets a phone light the LED — the prerequisite for unlocking |
-| Physical button access | The button is the actual unlock trigger |
-| Zigbee network key | Managed by Home Assistant / the Zigbee stack, out of scope here |
+| `LTK` (per lock+user) | Holding it lets a phone light the LED — the prerequisite for requesting an open |
+| Physical button access | The button is the actual open-request trigger |
+| Home Assistant access token | Lets Android invoke the configured service; stored encrypted with Android Keystore |
 | User location privacy | A phone that advertises must not be trackable |
 
 ## 2. Adversaries
@@ -28,7 +28,7 @@
 | A2 replay | Both `nonce_l` and `nonce_p` are fresh 128-bit random values per connection and both are in the transcript; a replayed `AUTH` never matches the lock's fresh `nonce_l` |
 | A2 impersonating the lock | Mutual authentication: the phone verifies `tag_l` before treating the session as real |
 | A2 tag reflection | Domain separation bytes `0x01`/`0x02`/`0x03`/`0x10` in every HMAC input |
-| A3 relay | **Partially mitigated.** RSSI thresholds + the requirement that a *human presses the physical button at the door* means a relay alone cannot open anything. A relay plus an accomplice at the door is out of scope for v1 (would need UWB / BLE channel sounding, which the C5 does not provide) |
+| A3 relay | **Partially mitigated.** RSSI thresholds + the requirement that a *human presses the physical button at the door* means a relay alone cannot request an open. A relay plus an accomplice at the door is out of scope for v1 (would need UWB / BLE channel sounding, which the C5 does not provide) |
 | A4 tracking | Rolling 6-byte pseudonym (15 s epochs) + Android's resolvable private address. No stable identifier is broadcast |
 | A5 stolen phone | Keys live in the Android Keystore (StrongBox when present) and cannot be exported; the app can require a device credential before enabling presence, and `flags.UNLOCKED` lets the lock optionally require an unlocked phone (`CONFIG_SMARTKEY_REQUIRE_PHONE_UNLOCKED`) |
 | A6 flash extraction | Flash encryption + NVS encryption in production builds; each lock has unique keys, so one compromised lock does not affect others |
@@ -53,7 +53,8 @@ nonces and MAC tags travel on the wire.
 * Confidentiality of the fact that *a* SmartKey user is nearby (the beacon is unencrypted,
   though unlinkable).
 * Protection against a malicious Home Assistant / Zigbee coordinator.
-* Remote (off-site) unlocking.
+* Protection against compromise of the Home Assistant token or service target.
+* Remote (off-site) unlocking: the physical button and BLE proximity grant remain required.
 
 ## 6. Audit / logging
 

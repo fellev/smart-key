@@ -16,6 +16,9 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import com.example.smart_key.ble.PresenceService
+import com.example.smart_key.data.HomeAssistantClient
+import com.example.smart_key.data.HomeAssistantConfig
+import com.example.smart_key.data.HomeAssistantSettings
 import com.example.smart_key.data.CredentialStore
 import com.example.smart_key.databinding.FragmentStatusBinding
 import com.google.android.material.snackbar.Snackbar
@@ -31,6 +34,7 @@ class StatusFragment : Fragment() {
     private val binding get() = _binding!!
 
     private lateinit var store: CredentialStore
+    private lateinit var homeAssistantSettings: HomeAssistantSettings
 
     /** Everything the presence service needs before it can start. */
     private val requiredPermissions = buildList {
@@ -62,6 +66,16 @@ class StatusFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         store = CredentialStore(requireContext().applicationContext)
+        homeAssistantSettings = HomeAssistantSettings(requireContext())
+
+        homeAssistantSettings.load()?.let { config ->
+            binding.homeAssistantUrl.setText(config.baseUrl)
+            binding.homeAssistantToken.setText(config.token)
+            binding.homeAssistantService.setText(config.service)
+            binding.homeAssistantEntity.setText(config.entityId)
+        } ?: binding.homeAssistantService.setText("homeassistant/turn_on")
+
+        binding.homeAssistantSave.setOnClickListener { saveHomeAssistantSettings() }
 
         binding.pairButton.setOnClickListener {
             findNavController().navigate(R.id.action_Status_to_Pairing)
@@ -148,6 +162,26 @@ class StatusFragment : Fragment() {
         }
     }
 
+    private fun saveHomeAssistantSettings() {
+        val config = HomeAssistantConfig(
+            baseUrl = binding.homeAssistantUrl.text?.toString()?.trim().orEmpty(),
+            token = binding.homeAssistantToken.text?.toString()?.trim().orEmpty(),
+            service = binding.homeAssistantService.text?.toString()?.trim().orEmpty(),
+            entityId = binding.homeAssistantEntity.text?.toString()?.trim().orEmpty()
+        )
+        try {
+            HomeAssistantClient.validate(config)
+            homeAssistantSettings.save(config)
+            Snackbar.make(binding.root, R.string.home_assistant_saved, Snackbar.LENGTH_SHORT).show()
+        } catch (error: IllegalArgumentException) {
+            Snackbar.make(
+                binding.root,
+                error.message ?: "Invalid Home Assistant settings",
+                Snackbar.LENGTH_LONG
+            ).show()
+        }
+    }
+
     private fun render(state: PresenceService.State) {
         val hasDoors = store.all().isNotEmpty()
         binding.statusText.setText(
@@ -156,6 +190,7 @@ class StatusFragment : Fragment() {
                 state == PresenceService.State.LISTENING -> R.string.status_listening
                 state == PresenceService.State.ADVERTISING -> R.string.status_advertising
                 state == PresenceService.State.CONNECTED -> R.string.status_connected
+                state == PresenceService.State.OPENING -> R.string.status_opening
                 state == PresenceService.State.UNLOCKED -> R.string.status_unlocked
                 else -> R.string.status_stopped
             }

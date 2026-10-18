@@ -95,7 +95,8 @@
     "OK": 0,
     "ZIGBEE_ERROR": 1,
     "NOT_PERMITTED": 2,
-    "RATE_LIMITED": 3
+    "RATE_LIMITED": 3,
+    "REQUEST": 4
   },
   "pairResults": {
     "OK": 0,

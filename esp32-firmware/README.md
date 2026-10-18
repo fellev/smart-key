@@ -1,7 +1,8 @@
 # SmartKey door unit firmware
 
-ESP-IDF application for the **ESP32-C5** (BLE 5 + 802.15.4 in one chip, which is
-why this variant was chosen: no external radio is needed for Zigbee).
+ESP-IDF application for the **ESP32-C5**. The door unit handles authenticated
+BLE presence and the physical button; Android sends the configured open service
+to Home Assistant over HTTPS.
 
 ## Layout
 
@@ -12,7 +13,6 @@ components/
   smartkey_store/           NVS credential storage
   smartkey_io/              LED and debounced button
   smartkey_ble/             NimBLE scanner, GATT client, pairing responder
-  smartkey_zigbee/          Zigbee On/Off client (stubbed when disabled)
 test/host/                  native unit tests against the shared golden vectors
 ```
 
@@ -67,20 +67,16 @@ Two smaller v6 changes are already in place and are harmless on 5.5:
 `smartkey_io` depends on `esp_driver_gpio` rather than the old monolithic
 `driver` component, which 6.x no longer re-exports.
 
-## Testing on an ESP32-C3 (or other non-Zigbee target)
+## Testing on an ESP32-C3
 
-The C3 has BLE 5 but **no 802.15.4 radio**, so it cannot run the Zigbee half.
-Everything else works, which makes it a useful board for developing the
-presence logic when no C5 or coordinator is to hand.
+The C3 has BLE 5 and can run the full door-side flow. Opening requires the
+Android app to have Internet access and valid Home Assistant settings; the
+firmware no longer sends an actuation command over Zigbee.
 
 ```bash
 idf.py set-target esp32c3
 idf.py build flash monitor
 ```
-
-`CONFIG_SMARTKEY_ZIGBEE_ENABLED` defaults to `n` when the target has no
-802.15.4 radio, so `smartkey_zigbee` compiles to its logging stub
-automatically — no menuconfig needed. The binary is ~40 % smaller as a result.
 
 ### What works on a C3
 
@@ -93,23 +89,21 @@ automatically — no menuconfig needed. The binary is ~40 % smaller as a result.
 | BLE pairing, credential storage in NVS | yes | |
 | Door beacon + `scanstats` | yes | worth measuring: the C3 radio is busier than the C5's |
 | Post-unlock release and re-arm | yes | the departure logic is BLE-only |
-| Console (`status`, `rssi`, `scanstats`, `users`, ...) | yes | `status` reports zigbee `DISABLED` |
-| **Zigbee join / HA detection** | **no** | no radio |
-| **Actually opening the door** | **no** | `skz_send_unlock()` logs `[stub] unlock command` |
+| Console (`status`, `rssi`, `scanstats`, `users`, ...) | yes | same commands |
+| **Actually opening the door** | **yes, with Android** | Android sends the configured Home Assistant service over HTTPS |
 
-So the C3 exercises the entire chain up to and including "the button was
-pressed and accepted" — only the final Zigbee hop is stubbed. `skz_ready()`
-returns `true` in the stub precisely so the rest of the flow stays testable,
-and the app still receives `UNLOCK_EVENT` with `result = OK`.
+The C3 exercises the complete BLE/button path. The phone receives the
+authenticated `UNLOCK_EVENT` request and invokes Home Assistant; the board does
+not need to join a Zigbee network.
 
 ### Two caveats
 
 * **RSSI thresholds are board-specific.** The C3's antenna and TX power differ
   from the C5's, so numbers calibrated on a C3 will need re-checking on the
   real hardware. Re-run `rssi 30` after switching.
-* **The unlock path is never proven.** A C3 reports success without any relay
-  actuating, so `on_zigbee_result()` is driven by the stub rather than a real
-  APS acknowledgement. Zigbee binding and HA behaviour must be tested on a C5.
+* **The unlock path needs Android and Home Assistant.** The physical button
+  request is reported over authenticated BLE; Android must have network access
+  and valid Home Assistant settings for the relay service to run.
 
 ## Unit tests (no hardware)
 
@@ -153,8 +147,6 @@ python3 test/host/sync_vectors.py
 | `SMARTKEY_MAX_USERS` | 8 | Credential slots |
 | `SMARTKEY_PAIRING_CODE` | *(empty)* | Empty = random code per window, printed on the console |
 | `SMARTKEY_REQUIRE_PHONE_UNLOCKED` | n | Ignore phones whose keyguard is locked |
-| `SMARTKEY_ZIGBEE_ENABLED` | y | Turn off to test presence without a coordinator |
-| `SMARTKEY_ZIGBEE_USE_TOGGLE` | n | Send Toggle instead of On |
 
 ## Timing
 

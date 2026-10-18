@@ -53,6 +53,7 @@ are verified against exactly the same bytes.
 | `BLUETOOTH_SCAN` (`neverForLocation`) | Find a door unit while pairing only |
 | `FOREGROUND_SERVICE_CONNECTED_DEVICE` | Keep advertising with the screen off |
 | `POST_NOTIFICATIONS` | The mandatory foreground service notification |
+| `INTERNET` | Send the open service request to Home Assistant over HTTPS |
 
 No location permission is needed: the scan filter is declared `neverForLocation`.
 
@@ -62,6 +63,14 @@ Pairing derives the long term key, immediately derives `K_auth` and `K_beacon`
 from it, wipes the raw key, and stores only the sub keys in
 `EncryptedSharedPreferences` (AES-256-GCM under an Android Keystore master key).
 See [`../shared-protocols/pairing-spec.md`](../shared-protocols/pairing-spec.md) §4.
+
+## Home Assistant
+
+The door's physical button sends an authenticated request to the Android app over BLE.
+Configure an HTTPS Home Assistant URL, long-lived access token, service (`domain/service`),
+and entity ID on the status screen. The token and settings are stored in encrypted preferences.
+The phone must have Internet access when the button is pressed; Android invokes the service
+through Home Assistant's `/api/services/{domain}/{service}` endpoint.
 
 ## Known next steps
 

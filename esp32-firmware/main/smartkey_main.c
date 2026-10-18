@@ -6,7 +6,7 @@
  *
  *   smartkey_ble    presence detection + mutual authentication  -> LED
  *   smartkey_io     LED and button
- *   smartkey_zigbee On/Off command to Home Assistant
+ *   Home Assistant command is sent by the Android app over HTTPS
  *   smartkey_store  paired credentials
  *
  * See shared-protocols/protocol-spec.md §9 for the state machine.
@@ -24,7 +24,6 @@
 #include "smartkey_io.h"
 #include "smartkey_proto.h"
 #include "smartkey_store.h"
-#include "smartkey_zigbee.h"
 
 static const char *TAG = "smartkey";
 
@@ -96,20 +95,6 @@ static void on_paired(size_t slot, void *ctx)
     }
 }
 
-static void on_zigbee_result(bool success, void *ctx)
-{
-    (void)ctx;
-    ESP_LOGI(TAG, "zigbee unlock %s", success ? "acknowledged" : "failed");
-    skb_report_unlock(success ? SKP_UNLOCK_OK : SKP_UNLOCK_ZIGBEE_ERROR);
-
-    if (success) {
-        /* The door is open: stop inviting further presses and go idle.
-         * Only on success — if the relay never actuated, the user still
-         * needs the LED and the button to try again. */
-        skb_release_after_unlock();
-    }
-}
-
 /** @return true when another unlock is allowed right now. */
 static bool rate_limit_allows(void)
 {
@@ -173,17 +158,13 @@ static void handle_unlock_request(void)
         ESP_LOGI(TAG, "unlock requested by '%s'", session.user_name);
     }
 
-    esp_err_t err = skz_send_unlock();
+    esp_err_t err = skb_report_unlock(SKP_UNLOCK_REQUEST);
     if (err != ESP_OK) {
-        ESP_LOGE(TAG, "zigbee command failed: %s", esp_err_to_name(err));
-        skb_report_unlock(SKP_UNLOCK_ZIGBEE_ERROR);
+        ESP_LOGE(TAG, "could not report open request to phone: %s", esp_err_to_name(err));
         return;
     }
-#if !CONFIG_SMARTKEY_ZIGBEE_ENABLED
-    /* No coordinator to acknowledge; report success immediately. */
-    skb_report_unlock(SKP_UNLOCK_OK);
+    /* Android invokes the configured Home Assistant service over HTTPS. */
     skb_release_after_unlock();
-#endif
 }
 
 static void handle_factory_reset(void)
@@ -191,7 +172,6 @@ static void handle_factory_reset(void)
     ESP_LOGW(TAG, "FACTORY RESET: erasing all credentials");
     skio_led_set(SKIO_LED_BLINK_FAST);
     sks_erase_all();
-    skz_factory_reset();
     skb_refresh_pseudonyms();
     vTaskDelay(pdMS_TO_TICKS(2000));
     esp_restart();
@@ -225,8 +205,6 @@ void app_main(void)
              id[3], (unsigned)sks_count(), (unsigned)sks_capacity());
 
     ESP_ERROR_CHECK(skio_init(on_button, NULL));
-    ESP_ERROR_CHECK(skz_init(on_zigbee_result, NULL));
-
     skb_config_t ble_cfg = {
         .on_state = on_ble_state,
         .on_paired = on_paired,

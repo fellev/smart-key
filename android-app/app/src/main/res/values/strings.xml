@@ -11,7 +11,8 @@
     <string name="status_advertising">Ready — walk up to your door</string>
     <string name="status_listening">Listening — radio silent until a door is near</string>
     <string name="status_connected">At your door — press the button to open</string>
-    <string name="status_unlocked">Door opened</string>
+    <string name="status_opening">Sending the open command to Home Assistant</string>
+    <string name="status_unlocked">Open command sent to Home Assistant</string>
     <string name="status_no_doors">No doors paired yet</string>
     <string name="status_hint_no_doors">Put the door unit into pairing mode by holding its button for 5 seconds, then tap \"Pair a door\".</string>
 
@@ -20,6 +21,14 @@
     <string name="pair_new_door">Pair a door</string>
     <string name="paired_doors">Paired doors</string>
     <string name="forget_door">Forget</string>
+    <string name="home_assistant_title">Home Assistant</string>
+    <string name="home_assistant_url_hint">HTTPS URL</string>
+    <string name="home_assistant_token_hint">Long-lived access token</string>
+    <string name="home_assistant_service_hint">Service (domain/service)</string>
+    <string name="home_assistant_entity_hint">Entity ID</string>
+    <string name="home_assistant_save">Save Home Assistant settings</string>
+    <string name="home_assistant_saved">Home Assistant settings saved</string>
+    <string name="home_assistant_failed">Home Assistant command failed. Check the URL, token, service, and entity.</string>
 
     <!-- Pairing screen -->
     <string name="pairing_code_hint">8 digit pairing code</string>
