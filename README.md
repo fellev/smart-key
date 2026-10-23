@@ -139,14 +139,14 @@ Stage 5 needs a JDK. If one is not on `PATH` the script looks in
 
 ### 2. Build and flash the firmware
 
-**ESP-IDF 5.5.x is required** — the bound is pinned in
+**ESP-IDF 5.5.5 or a later ESP-IDF 5.x release is required** — the bound is pinned in
 `esp32-firmware/main/idf_component.yml`. ESP-IDF 6.x ships mbedTLS 4.x, which
 removes the crypto APIs this project uses; see the "ESP-IDF version" section of
 [`esp32-firmware/README.md`](esp32-firmware/README.md) before attempting an
 upgrade.
 
 ```bash
-. ~/esp/v5.5.1/esp-idf/export.sh
+. ~/esp/v5.5.5/esp-idf/export.sh
 cd esp32-firmware
 idf.py set-target esp32c5
 idf.py menuconfig          # "SmartKey door unit" -> GPIOs, RSSI thresholds, ...

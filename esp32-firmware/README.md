@@ -21,15 +21,16 @@ The protocol itself is specified in [`../shared-protocols/`](../shared-protocols
 ## Build
 
 ```bash
-. ~/esp/v5.5.1/esp-idf/export.sh
+. ~/esp/v5.5.5/esp-idf/export.sh
 idf.py set-target esp32c5
 idf.py build flash monitor
 ```
 
 ### ESP-IDF version
 
-**Requires ESP-IDF 5.5.x.** The requirement is pinned to `>=5.5.0,<6.0.0` in
-`main/idf_component.yml`, and the upper bound is deliberate.
+**Requires ESP-IDF 5.5.5 or a later ESP-IDF 5.x release.** The requirement is
+pinned to `>=5.5.5,<6.0.0` in `main/idf_component.yml`. ESP-IDF 5.5.5 includes
+an updated IEEE 802.15.4 transmit-power mapping used by Zigbee.
 
 ESP-IDF 6.x bundles **mbedTLS 4.x**, which deletes the legacy crypto APIs:
 `mbedtls/md.h`, `mbedtls/ecdh.h` and `mbedtls/ecp.h` are gone and everything
@@ -61,7 +62,7 @@ out rather than merged unverified.
    `#if MBEDTLS_VERSION_MAJOR >= 4` so 5.5 still builds.
 3. Confirm **all** golden vectors pass on the PSA path — especially
    `skc_pseudonym`, the handshake tags and the pairing derivation.
-4. Only then bump the bound in `main/idf_component.yml`.
+4. Only then relax the upper bound in `main/idf_component.yml` to admit IDF 6.x.
 
 Two smaller v6 changes are already in place and are harmless on 5.5:
 `smartkey_io` depends on `esp_driver_gpio` rather than the old monolithic
