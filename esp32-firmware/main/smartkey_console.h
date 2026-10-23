@@ -11,9 +11,11 @@ extern "C" {
 /**
  * @brief Register the SmartKey commands and start the REPL on the USB/UART console.
  *
- * Commands: status, users, pair, revoke, enable, forget, reset.
+ * Commands: status, users, open, pair, revoke, enable, forget, reset.
  */
-void smartkey_console_start(void);
+typedef void (*smartkey_console_open_button_fn_t)(void);
+
+void smartkey_console_start(smartkey_console_open_button_fn_t open_button);
 
 #ifdef __cplusplus
 }

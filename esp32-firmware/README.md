@@ -21,15 +21,15 @@ The protocol itself is specified in [`../shared-protocols/`](../shared-protocols
 ## Build
 
 ```bash
-. ~/esp/v5.5.5/esp-idf/export.sh
+. ~/esp/v5.5.6/esp-idf/export.sh
 idf.py set-target esp32c5
 idf.py build flash monitor
 ```
 
 ### ESP-IDF version
 
-**Requires ESP-IDF 5.5.5 or a later ESP-IDF 5.x release.** The requirement is
-pinned to `>=5.5.5,<6.0.0` in `main/idf_component.yml`. ESP-IDF 5.5.5 includes
+**Requires ESP-IDF 5.5.6 or a later ESP-IDF 5.x release.** The requirement is
+pinned to `>=5.5.6,<6.0.0` in `main/idf_component.yml`. ESP-IDF 5.5.5 includes
 an updated IEEE 802.15.4 transmit-power mapping used by Zigbee.
 
 ESP-IDF 6.x bundles **mbedTLS 4.x**, which deletes the legacy crypto APIs:
@@ -191,6 +191,17 @@ smartkey> rssi 30
 Stand where the LED *should* come on, read the filtered column, then set
 `SMARTKEY_PROXIMITY_NEAR_DBM` a few dB below it and `..._FAR_DBM` about 12 dB
 below that. `status` shows the currently compiled gate.
+
+### Emulating the open button from the serial console
+
+Run `open` at the `smartkey>` prompt to simulate a short physical button press:
+
+```
+smartkey> open
+```
+
+It uses the same authorization, proximity and rate-limit checks as the button;
+it does not bypass them.
 
 ## The door goes idle once it has been opened
 

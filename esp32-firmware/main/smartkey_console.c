@@ -19,6 +19,7 @@
 #include "smartkey_store.h"
 
 static const char *TAG = "sk_console";
+static smartkey_console_open_button_fn_t s_open_button;
 
 static const char *state_name(skb_state_t state)
 {
@@ -205,6 +206,23 @@ static int cmd_pair(int argc, char **argv)
     return 0;
 }
 
+static int cmd_open(int argc, char **argv)
+{
+    (void)argv;
+    if (argc != 1) {
+        printf("usage: open\n");
+        return 1;
+    }
+    if (s_open_button == NULL) {
+        printf("open button handler is unavailable\n");
+        return 1;
+    }
+
+    printf("simulating a short press of the open button\n");
+    s_open_button();
+    return 0;
+}
+
 /** Shared by 'revoke' and 'enable'. */
 static int set_enabled(int argc, char **argv, bool enabled)
 {
@@ -260,8 +278,10 @@ static int cmd_reset(int argc, char **argv)
     return 0;
 }
 
-void smartkey_console_start(void)
+void smartkey_console_start(smartkey_console_open_button_fn_t open_button)
 {
+    s_open_button = open_button;
+
     esp_console_repl_t *repl = NULL;
     esp_console_repl_config_t repl_config = ESP_CONSOLE_REPL_CONFIG_DEFAULT();
     repl_config.prompt = "smartkey>";
@@ -276,6 +296,9 @@ void smartkey_console_start(void)
         {.command = "scanstats",
          .help = "Measure advert reception rate: scanstats [seconds]",
          .func = cmd_scanstats},
+        {.command = "open",
+         .help = "Simulate a short press of the physical open button",
+         .func = cmd_open},
         {.command = "pair", .help = "Open the pairing window", .func = cmd_pair},
         {.command = "revoke", .help = "Disable a slot: revoke <slot>", .func = cmd_revoke},
         {.command = "enable", .help = "Re-enable a slot: enable <slot>", .func = cmd_enable},

@@ -5,4 +5,4 @@ dependencies:
     ## Upper bound is deliberate: ESP-IDF 6.x ships mbedTLS 4.x, which removes
     ## the legacy md/ecdh/ecp APIs this project uses. See the "ESP-IDF version"
     ## section of ../README.md before relaxing it.
-    version: ">=5.5.5,<6.0.0"
+    version: ">=5.5.6,<6.0.0"

@@ -211,6 +211,11 @@ static void on_button(skio_button_event_t event, void *ctx)
     }
 }
 
+static void simulate_open_button(void)
+{
+    on_button(SKIO_BUTTON_PRESSED, NULL);
+}
+
 void app_main(void)
 {
     ESP_LOGI(TAG, "SmartKey door unit starting (protocol SKP1 v%d)", SKP_VERSION);
@@ -230,7 +235,7 @@ void app_main(void)
     };
     ESP_ERROR_CHECK(skb_init(&ble_cfg));
 
-    smartkey_console_start();
+    smartkey_console_start(simulate_open_button);
 
     if (sks_count() == 0) {
         ESP_LOGW(TAG, "no phones paired yet - hold the button for %d s to start pairing",
