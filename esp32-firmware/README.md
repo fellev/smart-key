@@ -1,8 +1,8 @@
 # SmartKey door unit firmware
 
-ESP-IDF application for the **ESP32-C5**. The door unit handles authenticated
-BLE presence and the physical button; Android sends the configured open service
-to Home Assistant over HTTPS.
+ESP-IDF application for the **ESP32-C5**. Each accepted physical button press
+sends an open command through Zigbee and also reports an authenticated request
+to Android, which calls the configured Home Assistant service over HTTPS.
 
 ## Layout
 
@@ -69,9 +69,8 @@ Two smaller v6 changes are already in place and are harmless on 5.5:
 
 ## Testing on an ESP32-C3
 
-The C3 has BLE 5 and can run the full door-side flow. Opening requires the
-Android app to have Internet access and valid Home Assistant settings; the
-firmware no longer sends an actuation command over Zigbee.
+The C3 has BLE 5 but no 802.15.4 radio. It can use the Android/Home Assistant
+route; the direct Zigbee route is available only on Zigbee-capable targets.
 
 ```bash
 idf.py set-target esp32c3
@@ -92,18 +91,17 @@ idf.py build flash monitor
 | Console (`status`, `rssi`, `scanstats`, `users`, ...) | yes | same commands |
 | **Actually opening the door** | **yes, with Android** | Android sends the configured Home Assistant service over HTTPS |
 
-The C3 exercises the complete BLE/button path. The phone receives the
-authenticated `UNLOCK_EVENT` request and invokes Home Assistant; the board does
-not need to join a Zigbee network.
+The C3 exercises the BLE/button path and Android/Home Assistant route. On the
+ESP32-C5, the same press also sends the direct Zigbee command.
 
 ### Two caveats
 
 * **RSSI thresholds are board-specific.** The C3's antenna and TX power differ
   from the C5's, so numbers calibrated on a C3 will need re-checking on the
   real hardware. Re-run `rssi 30` after switching.
-* **The unlock path needs Android and Home Assistant.** The physical button
+* **The Android route needs Home Assistant connectivity.** The physical button
   request is reported over authenticated BLE; Android must have network access
-  and valid Home Assistant settings for the relay service to run.
+  and valid Home Assistant settings for that route to run.
 
 ## Unit tests (no hardware)
 

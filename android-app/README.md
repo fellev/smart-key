@@ -66,11 +66,11 @@ See [`../shared-protocols/pairing-spec.md`](../shared-protocols/pairing-spec.md)
 
 ## Home Assistant
 
-The door's physical button sends an authenticated request to the Android app over BLE.
-Configure an HTTPS Home Assistant URL, long-lived access token, service (`domain/service`),
-and entity ID on the status screen. The token and settings are stored in encrypted preferences.
-The phone must have Internet access when the button is pressed; Android invokes the service
-through Home Assistant's `/api/services/{domain}/{service}` endpoint.
+The door's physical button sends its Zigbee command and an authenticated request to the
+Android app over BLE. Configure an HTTPS Home Assistant URL, long-lived access token, service
+(`domain/service`), and entity ID on the status screen. The token and settings are stored in
+encrypted preferences. The phone must have Internet access for the Android route; it invokes
+Home Assistant's `/api/services/{domain}/{service}` endpoint.
 
 ## Known next steps
 
