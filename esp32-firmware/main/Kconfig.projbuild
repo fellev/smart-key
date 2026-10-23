@@ -271,33 +271,25 @@ menu "SmartKey door unit"
             range 0 60000
     endmenu
 
-    menu "Zigbee"
-        config SMARTKEY_ZIGBEE_ENABLED
-            bool "Enable the Zigbee end device"
-            default y if SOC_IEEE802154_SUPPORTED
-            default n
+    menu "Wi-Fi and MQTT"
+        config SMARTKEY_WIFI_SSID
+            string "Wi-Fi network name (SSID)"
+            default ""
             help
-                Disable to build and test the BLE presence logic without a Zigbee
-                coordinator; unlock requests are then only logged.
+                The 2.4 GHz Wi-Fi network that can reach the MQTT broker.
 
-                Defaults to off on targets with no 802.15.4 radio (ESP32-C3,
-                -S3, ...), where the Zigbee stack is not available at all. That
-                makes the whole BLE half of the project — presence, proximity,
-                pairing, the console — testable on a plain C3 dev board.
-
-        config SMARTKEY_ZIGBEE_USE_TOGGLE
-            bool "Send Toggle instead of On"
-            default n
+        config SMARTKEY_WIFI_PASSWORD
+            string "Wi-Fi password"
+            default ""
             help
-                Some door relays are wired as a toggle rather than a momentary On.
+                Leave empty only for an open Wi-Fi network.
 
-        config SMARTKEY_ZIGBEE_PULSE_MS
-            int "Send an Off command after this delay (0 = never)"
-            default 0
-            range 0 60000
+        config SMARTKEY_MQTT_BROKER_URI
+            string "MQTT broker URI"
+            default "mqtt://192.168.31.78:1883"
             help
-                For relays that need an explicit release. 0 keeps the momentary
-                behaviour handled by Home Assistant.
+                Broker URI, for example mqtt://192.168.31.78:1883. This setup
+                uses an unauthenticated, unencrypted MQTT connection.
     endmenu
 
 endmenu

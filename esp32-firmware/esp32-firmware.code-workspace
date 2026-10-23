@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../shared-protocols"
+		},
+		{
+			"path": "../android-app"
+		}
+	],
+	"settings": {}
+}

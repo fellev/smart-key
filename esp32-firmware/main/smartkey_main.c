@@ -6,7 +6,7 @@
  *
  *   smartkey_ble    presence detection + mutual authentication  -> LED
  *   smartkey_io     LED and button
- *   smartkey_zigbee    direct Home Assistant relay command
+ *   smartkey_mqtt      Wi-Fi MQTT Home Assistant trigger
  *   Android app        Home Assistant service command over HTTPS
  *   smartkey_store  paired credentials
  *
@@ -25,7 +25,7 @@
 #include "smartkey_io.h"
 #include "smartkey_proto.h"
 #include "smartkey_store.h"
-#include "smartkey_zigbee.h"
+#include "smartkey_mqtt.h"
 
 static const char *TAG = "smartkey";
 
@@ -97,12 +97,6 @@ static void on_paired(size_t slot, void *ctx)
     }
 }
 
-static void on_zigbee_result(bool success, void *ctx)
-{
-    (void)ctx;
-    ESP_LOGI(TAG, "zigbee unlock %s", success ? "acknowledged" : "failed");
-}
-
 /** @return true when another unlock is allowed right now. */
 static bool rate_limit_allows(void)
 {
@@ -166,20 +160,20 @@ static void handle_unlock_request(void)
         ESP_LOGI(TAG, "unlock requested by '%s'", session.user_name);
     }
 
-    esp_err_t zigbee_err = skz_send_unlock();
-    if (zigbee_err != ESP_OK) {
-        ESP_LOGW(TAG, "Zigbee open command was not sent: %s", esp_err_to_name(zigbee_err));
+    esp_err_t mqtt_err = skm_send_unlock();
+    if (mqtt_err != ESP_OK) {
+        ESP_LOGW(TAG, "MQTT open event was not sent: %s", esp_err_to_name(mqtt_err));
     }
 
     esp_err_t phone_err = skb_report_unlock(SKP_UNLOCK_REQUEST);
     if (phone_err != ESP_OK) {
         ESP_LOGW(TAG, "could not report open request to phone: %s", esp_err_to_name(phone_err));
     }
-    if (zigbee_err != ESP_OK && phone_err != ESP_OK) {
-        ESP_LOGE(TAG, "both open command routes failed");
+    if (mqtt_err != ESP_OK && phone_err != ESP_OK) {
+        ESP_LOGE(TAG, "both open request routes failed");
         return;
     }
-    /* Each accepted press attempts both routes; either queued request re-arms. */
+    /* Each accepted press attempts MQTT and phone routes; either accepted request re-arms. */
     skb_release_after_unlock();
 }
 
@@ -188,7 +182,6 @@ static void handle_factory_reset(void)
     ESP_LOGW(TAG, "FACTORY RESET: erasing all credentials");
     skio_led_set(SKIO_LED_BLINK_FAST);
     sks_erase_all();
-    skz_factory_reset();
     skb_refresh_pseudonyms();
     vTaskDelay(pdMS_TO_TICKS(2000));
     esp_restart();
@@ -226,8 +219,12 @@ void app_main(void)
     ESP_LOGI(TAG, "lock id %02x%02x%02x%02x..., %u/%u credentials stored", id[0], id[1], id[2],
              id[3], (unsigned)sks_count(), (unsigned)sks_capacity());
 
+    esp_err_t mqtt_init_err = skm_init(id);
+    if (mqtt_init_err != ESP_OK) {
+        ESP_LOGW(TAG, "Wi-Fi/MQTT unavailable: %s", esp_err_to_name(mqtt_init_err));
+    }
+
     ESP_ERROR_CHECK(skio_init(on_button, NULL));
-    ESP_ERROR_CHECK(skz_init(on_zigbee_result, NULL));
     skb_config_t ble_cfg = {
         .on_state = on_ble_state,
         .on_paired = on_paired,

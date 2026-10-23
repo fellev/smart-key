@@ -16,6 +16,7 @@
 #include "freertos/task.h"
 #include "smartkey_ble.h"
 #include "smartkey_io.h"
+#include "smartkey_mqtt.h"
 #include "smartkey_store.h"
 
 static const char *TAG = "sk_console";
@@ -223,6 +224,23 @@ static int cmd_open(int argc, char **argv)
     return 0;
 }
 
+static int cmd_mqtt_open(int argc, char **argv)
+{
+    (void)argv;
+    if (argc != 1) {
+        printf("usage: mqtt-open\n");
+        return 1;
+    }
+
+    esp_err_t err = skm_send_unlock();
+    if (err != ESP_OK) {
+        printf("could not send MQTT open event: %s\n", esp_err_to_name(err));
+        return 1;
+    }
+    printf("MQTT open event queued\n");
+    return 0;
+}
+
 /** Shared by 'revoke' and 'enable'. */
 static int set_enabled(int argc, char **argv, bool enabled)
 {
@@ -299,6 +317,9 @@ void smartkey_console_start(smartkey_console_open_button_fn_t open_button)
         {.command = "open",
          .help = "Simulate a short press of the physical open button",
          .func = cmd_open},
+        {.command = "mqtt-open",
+         .help = "Send an open event directly to Home Assistant over MQTT",
+         .func = cmd_mqtt_open},
         {.command = "pair", .help = "Open the pairing window", .func = cmd_pair},
         {.command = "revoke", .help = "Disable a slot: revoke <slot>", .func = cmd_revoke},
         {.command = "enable", .help = "Re-enable a slot: enable <slot>", .func = cmd_enable},

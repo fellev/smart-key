@@ -11,7 +11,7 @@ extern "C" {
 /**
  * @brief Register the SmartKey commands and start the REPL on the USB/UART console.
  *
- * Commands: status, users, open, pair, revoke, enable, forget, reset.
+ * Commands: status, users, open, mqtt-open, pair, revoke, enable, forget, reset.
  */
 typedef void (*smartkey_console_open_button_fn_t)(void);
 

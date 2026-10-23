@@ -1,5 +1,5 @@
 # SmartKey door unit partition table (4 MB flash).
-# 'zb_storage' and 'zb_fct' are required by the esp-zigbee stack.
+# Keep the reserved Zigbee partitions to preserve the existing flash layout.
 # Name,      Type, SubType,  Offset,   Size,  Flags
 nvs,         data, nvs,      0x9000,   0x6000,
 phy_init,    data, phy,      0xf000,   0x1000,

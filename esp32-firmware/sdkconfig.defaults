@@ -15,16 +15,9 @@ CONFIG_BT_NIMBLE_HOST_TASK_STACK_SIZE=5120
 # No bonding: the application layer authenticates (security-model.md §4)
 CONFIG_BT_NIMBLE_SECURITY_ENABLE=n
 
-# --- 802.15.4 / Zigbee end device -------------------------------------------
-CONFIG_IEEE802154_ENABLED=y
-CONFIG_IEEE802154_CCA_THRESHOLD=-75
-CONFIG_ZB_ENABLED=y
-CONFIG_ZB_ZED=y
-CONFIG_ZB_RADIO_NATIVE=y
-
 # --- Partition table ---------------------------------------------------------
-# Zigbee needs its own NVS area next to the application, so the single-factory
-# layout does not fit; see partitions.csv.
+# Keep the existing custom layout so current NVS and application offsets remain
+# stable; the trailing Zigbee partitions are reserved for compatibility.
 CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
 CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y

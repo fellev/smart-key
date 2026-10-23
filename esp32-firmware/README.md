@@ -1,8 +1,9 @@
 # SmartKey door unit firmware
 
 ESP-IDF application for the **ESP32-C5**. Each accepted physical button press
-sends an open command through Zigbee and also reports an authenticated request
-to Android, which calls the configured Home Assistant service over HTTPS.
+publishes an MQTT device-trigger event to Home Assistant over Wi-Fi and also
+reports an authenticated request to Android, which can call the configured Home
+Assistant service over HTTPS.
 
 ## Layout
 
@@ -13,6 +14,7 @@ components/
   smartkey_store/           NVS credential storage
   smartkey_io/              LED and debounced button
   smartkey_ble/             NimBLE scanner, GATT client, pairing responder
+  smartkey_mqtt/            Wi-Fi station, MQTT discovery and button trigger
 test/host/                  native unit tests against the shared golden vectors
 ```
 
@@ -29,8 +31,9 @@ idf.py build flash monitor
 ### ESP-IDF version
 
 **Requires ESP-IDF 5.5.6 or a later ESP-IDF 5.x release.** The requirement is
-pinned to `>=5.5.6,<6.0.0` in `main/idf_component.yml`. ESP-IDF 5.5.5 includes
-an updated IEEE 802.15.4 transmit-power mapping used by Zigbee.
+pinned to `>=5.5.6,<6.0.0` in `main/idf_component.yml`. The custom partition
+layout is retained so firmware updates preserve existing NVS and application
+offsets.
 
 ESP-IDF 6.x bundles **mbedTLS 4.x**, which deletes the legacy crypto APIs:
 `mbedtls/md.h`, `mbedtls/ecdh.h` and `mbedtls/ecp.h` are gone and everything
@@ -70,8 +73,8 @@ Two smaller v6 changes are already in place and are harmless on 5.5:
 
 ## Testing on an ESP32-C3
 
-The C3 has BLE 5 but no 802.15.4 radio. It can use the Android/Home Assistant
-route; the direct Zigbee route is available only on Zigbee-capable targets.
+The C3 has BLE 5 but no 802.15.4 radio. It can use both the Wi-Fi/MQTT and
+Android/Home Assistant routes.
 
 ```bash
 idf.py set-target esp32c3
@@ -90,10 +93,9 @@ idf.py build flash monitor
 | Door beacon + `scanstats` | yes | worth measuring: the C3 radio is busier than the C5's |
 | Post-unlock release and re-arm | yes | the departure logic is BLE-only |
 | Console (`status`, `rssi`, `scanstats`, `users`, ...) | yes | same commands |
-| **Actually opening the door** | **yes, with Android** | Android sends the configured Home Assistant service over HTTPS |
+| **Actually opening the door** | **yes** | Use the MQTT device trigger or the Android/Home Assistant route |
 
-The C3 exercises the BLE/button path and Android/Home Assistant route. On the
-ESP32-C5, the same press also sends the direct Zigbee command.
+The C3 exercises the BLE/button, MQTT and Android/Home Assistant routes.
 
 ### Two caveats
 
@@ -103,6 +105,37 @@ ESP32-C5, the same press also sends the direct Zigbee command.
 * **The Android route needs Home Assistant connectivity.** The physical button
   request is reported over authenticated BLE; Android must have network access
   and valid Home Assistant settings for that route to run.
+
+## MQTT and Home Assistant
+
+The firmware connects to the configured Wi-Fi station and the broker URI
+defaults to `mqtt://192.168.31.78:1883`. Set **SmartKey door unit → Wi-Fi and
+MQTT → Wi-Fi network name (SSID)** and **Wi-Fi password** in `idf.py menuconfig`
+before flashing. Credentials are not stored in the project defaults.
+
+On each MQTT connection, the firmware publishes retained Home Assistant MQTT
+discovery configuration. Home Assistant shows a **SmartKey Door** device under
+the MQTT integration with an **Open door** button control, as well as a **button
+1 short press** device trigger for automations. Pressing the HA control publishes
+`unlock` to `smartkey/<lock-id>/event`, which triggers any Home Assistant
+automation configured with the SmartKey device trigger. When the physical
+unlock button is accepted by the existing BLE authorization and proximity
+checks, it publishes to that same event topic.
+
+The MQTT event is not retained, and it is sent only while connected; an
+offline button press will not be replayed after reconnect. The broker URI above
+uses plain MQTT without credentials, as configured here. Restrict broker access
+to trusted devices/network segments: anyone who can publish to the event topic
+can spoof the SmartKey trigger.
+
+To verify a serial `mqtt-open` command, listen to `smartkey/#` (not
+`homeassistant/#`): the latter only contains Home Assistant discovery messages.
+The event topic is `smartkey/<lock-id>/event`.
+The UART log reports the exact topic and payload after a successful publish.
+
+The authenticated BLE notification to Android remains enabled too. Avoid
+configuring both Android and an MQTT-triggered automation to operate the same
+relay for one press, or the door may receive duplicate open requests.
 
 ## Unit tests (no hardware)
 
@@ -202,6 +235,17 @@ smartkey> open
 
 It uses the same authorization, proximity and rate-limit checks as the button;
 it does not bypass them.
+
+To send a test open event directly through MQTT, run `mqtt-open`:
+
+```
+smartkey> mqtt-open
+```
+
+This requires Wi-Fi and MQTT to be connected. Unlike `open`, this command
+directly triggers the Home Assistant MQTT device automation and bypasses the
+phone authorization, proximity, and rate-limit checks; keep serial access
+restricted.
 
 ## The door goes idle once it has been opened
 
