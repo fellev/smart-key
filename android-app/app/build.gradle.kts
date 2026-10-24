@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
 }
@@ -12,22 +14,32 @@ android {
         applicationId = "com.smartkey.app"
         minSdk = 36
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 3
+        versionName = "1.0.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     signingConfigs {
         create("release") {
+            val keystoreProperties = Properties().apply {
+                val propertiesFile = project.file("keystore.properties")
+                if (propertiesFile.isFile) {
+                    propertiesFile.inputStream().use { load(it) }
+                }
+            }
             val keystorePath = project.findProperty("KEYSTORE_FILE") as? String
                 ?: System.getenv("KEYSTORE_FILE")
+                ?: keystoreProperties.getProperty("storeFile")
             val kPassword = project.findProperty("KEYSTORE_PASSWORD") as? String
                 ?: System.getenv("KEYSTORE_PASSWORD")
+                ?: keystoreProperties.getProperty("storePassword")
             val alias = project.findProperty("KEY_ALIAS") as? String
                 ?: System.getenv("KEY_ALIAS")
+                ?: keystoreProperties.getProperty("keyAlias")
             val keyPass = project.findProperty("KEY_PASSWORD") as? String
                 ?: System.getenv("KEY_PASSWORD")
+                ?: keystoreProperties.getProperty("keyPassword")
 
             if (keystorePath != null && kPassword != null && alias != null && keyPass != null) {
                 storeFile = file(keystorePath)
@@ -43,12 +55,7 @@ android {
             optimization {
                 enable = false
             }
-            val releaseConfig = signingConfigs.getByName("release")
-            signingConfig = if (releaseConfig.storeFile?.exists() == true && releaseConfig.storePassword != null) {
-                releaseConfig
-            } else {
-                signingConfigs.getByName("debug")
-            }
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {

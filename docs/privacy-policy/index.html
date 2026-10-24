@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Privacy policy for the SmartKey Android application.">
+  <title>SmartKey Privacy Policy</title>
+  <style>
+    :root { color-scheme: light dark; font: 16px/1.6 system-ui, sans-serif; }
+    body { max-width: 48rem; margin: 0 auto; padding: 2rem 1.25rem; }
+    h1, h2 { line-height: 1.25; }
+    a { overflow-wrap: anywhere; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>SmartKey Privacy Policy</h1>
+    <p><strong>Effective date:</strong> October 24, 2026</p>
+
+    <p>This policy explains how the SmartKey Android application handles information. For privacy questions, contact the publisher using the contact details at the end of this policy.</p>
+
+    <h2>Information stored on your device</h2>
+    <p>To pair with doors, SmartKey stores door identifiers, a device identifier, derived cryptographic keys, door labels, and pairing timestamps. If you configure Home Assistant, the app also stores the server URL, access token, service, and entity ID you provide. The app does not send analytics or crash reports to the publisher; crash details, if generated, are kept locally on your device.</p>
+    <p>SmartKey encrypts these preferences using Android Keystore-backed encrypted preferences. If encrypted credential storage cannot be initialized, the app currently falls back to app-private preferences, which are not encrypted by that fallback. Android app-private storage remains subject to the security of your device.</p>
+
+    <h2>Bluetooth and door hardware</h2>
+    <p>SmartKey uses Bluetooth Low Energy to pair with compatible door hardware and exchange presence, pairing, and authentication messages. The app processes these communications to provide the door-key features. Bluetooth data is exchanged with your nearby door hardware; the publisher does not receive it.</p>
+
+    <h2>Optional Home Assistant connection</h2>
+    <p>If you configure Home Assistant, SmartKey sends an HTTPS request to the URL you supply when the door requests an open action. The request includes the configured service and entity ID and uses the access token you supplied for authorization. The request is sent directly to that Home Assistant server, not to a publisher-operated server. The server operator may receive and retain request data under their own practices; review the privacy terms for that server, especially if it is operated by a third party.</p>
+
+    <h2>Sharing, collection, and advertising</h2>
+    <p>The publisher does not operate an app backend, receive app usage data, sell personal information, or use advertising or analytics SDKs. Information is shared only with the compatible door hardware you pair and, if you enable the integration, the Home Assistant server you configure.</p>
+    <p>This policy is hosted by GitHub Pages. When you visit this page, GitHub may process technical request information under its own privacy policy. The page does not use tracking scripts or advertising.</p>
+
+    <h2>Retention and deletion</h2>
+    <p>You can remove paired door credentials in the app. The generated device identifier and Home Assistant settings remain on your device until you change the settings, clear SmartKey's app data, or uninstall the app. Information already sent to a door or Home Assistant server is subject to that recipient's retention practices.</p>
+
+    <h2>Children</h2>
+    <p>SmartKey is a utility for operating compatible door hardware and is not designed for children.</p>
+
+    <h2>Changes to this policy</h2>
+    <p>Updates to this policy will be published on this page with a revised effective date.</p>
+
+    <h2>Contact</h2>
+    <p>For privacy questions, contact <a href="mailto:fellev@gmail.com">fellev@gmail.com</a>.</p>
+  </main>
+</body>
+</html>

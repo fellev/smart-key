@@ -1,7 +1,10 @@
 package com.example.smart_key
 
 import android.Manifest
+import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -76,6 +79,15 @@ class StatusFragment : Fragment() {
         } ?: binding.homeAssistantService.setText("homeassistant/turn_on")
 
         binding.homeAssistantSave.setOnClickListener { saveHomeAssistantSettings() }
+        binding.privacyPolicy.setOnClickListener {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(PRIVACY_POLICY_URL))
+            try {
+                startActivity(intent)
+            } catch (_: ActivityNotFoundException) {
+                Snackbar.make(binding.root, R.string.privacy_policy_unavailable, Snackbar.LENGTH_LONG)
+                    .show()
+            }
+        }
 
         binding.pairButton.setOnClickListener {
             findNavController().navigate(R.id.action_Status_to_Pairing)
@@ -231,5 +243,7 @@ class StatusFragment : Fragment() {
 
     private companion object {
         const val TAG = "StatusFragment"
+        const val PRIVACY_POLICY_URL =
+            "https://fellev.github.io/smart-key/privacy-policy/"
     }
 }

@@ -29,6 +29,8 @@
     <string name="home_assistant_save">Save Home Assistant settings</string>
     <string name="home_assistant_saved">Home Assistant settings saved</string>
     <string name="home_assistant_failed">Home Assistant command failed. Check the URL, token, service, and entity.</string>
+    <string name="privacy_policy">Privacy policy</string>
+    <string name="privacy_policy_unavailable">No browser is available to open the privacy policy.</string>
 
     <!-- Pairing screen -->
     <string name="pairing_code_hint">8 digit pairing code</string>

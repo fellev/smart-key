@@ -19,8 +19,8 @@ Smart Key turns your smartphone into a secure, fast, and reliable digital key fo
 Key Features:
 • Seamless Hands-Free Unlock: Automatically detects paired doors via low-energy Bluetooth (BLE) as you approach.
 • Ultra-Fast Proximity Presence: Designed for instant door detection so your door is unlocked in under a second.
-• On-Device Security & Encryption: Smart Key stores all credentials securely using Android EncryptedSharedPreferences and hardware-backed keystore elements.
-• Fully Offline & Private: No external servers or cloud accounts required. Your digital keys never leave your phone.
+• On-Device Security & Encryption: Smart Key stores paired credentials and settings in encrypted preferences protected by the Android Keystore.
+• Optional Home Assistant Integration: Send an authenticated open request to the Home Assistant instance you configure.
 • Easy Door Pairing: Pair new smart door hardware in seconds with simple interactive pairing.
 
 How It Works:
@@ -40,43 +40,20 @@ Google Play Console requires a policy review justification when declaring `FOREG
 
 ---
 
-### B. Data Safety Questionnaire Answers
+### B. Data Safety Questionnaire
 
-- **Does your app collect or share any user data?**
-  `No`. Smart Key does not collect or transmit any user data to external servers.
-- **Is all data encrypted in transit?**
-  `Yes`. Bluetooth communication between the app and the smart lock uses AES-128-GCM encryption.
-- **Can users request data deletion?**
-  `Yes`. Users can delete paired doors and reset all local credentials directly inside the app at any time.
+Complete the Play Console questionnaire based on the final release and the developer's actual data practices; do not use a blanket "No" answer without review. Smart Key has no developer-operated backend, but when Home Assistant is configured, the app sends an HTTPS request directly to the configured Home Assistant endpoint. The request includes the saved access token in the authorization header and the configured service and entity ID. Depending on the URL, that endpoint may be self-hosted or operated by a third party. The app also communicates with paired door hardware over BLE.
+
+Confirm which data types and purposes must be declared under current Play Console rules, and verify the deletion and encryption answers against the shipped app and hosting configuration before submission.
 
 ---
 
-## 3. Privacy Policy Template
+## 3. Privacy Policy
 
-*Copy and host the text below on GitHub Pages, Notion, or your website to obtain a Privacy Policy URL required by Google Play Console:*
+The privacy policy is hosted at:
+https://fellev.github.io/smart-key/privacy-policy/
 
-```markdown
-# Privacy Policy for Smart Key
-
-**Effective Date:** May 2026
-
-Smart Key ("we", "our", or "app") is committed to protecting user privacy. This Privacy Policy outlines how your information is handled when using the Smart Key Android application.
-
-### 1. Data Collection & Processing
-Smart Key operates entirely on-device and offline. We do not collect, store, or transmit any personal data, identifiers, location data, or analytics to any remote servers.
-
-### 2. Bluetooth & Device Permissions
-The app uses Bluetooth Low Energy (BLE) permissions (`BLUETOOTH_CONNECT`, `BLUETOOTH_ADVERTISE`, `BLUETOOTH_SCAN`) solely to discover and communicate with paired physical door hardware. Bluetooth scan data is processed locally on your device and is never transmitted off-device.
-
-### 3. Data Storage & Security
-All cryptographic keys and paired door identifiers are stored locally on your device using Android's `EncryptedSharedPreferences` backed by the hardware Keystore.
-
-### 4. Data Deletion
-You can remove paired door credentials and clear all application data at any time through the app settings or Android App Management.
-
-### 5. Contact Us
-If you have any questions regarding this privacy policy, please contact support@smartkey.app.
-```
+The same URL is linked from the app's main screen.
 
 ---
 
@@ -85,7 +62,7 @@ If you have any questions regarding this privacy policy, please contact support@
 1. **Log in to [Google Play Console](https://play.google.com/console)**.
 2. Select your app or click **Create app** (Name: `Smart Key`, Default language: `English`, App, Free).
 3. Under **App Content**:
-   - Submit the **Privacy Policy URL**.
+   - Submit `https://fellev.github.io/smart-key/privacy-policy/` as the **Privacy Policy URL**.
    - Complete the **Data Safety** section using the answers in Section 2B.
    - Complete the **Foreground Services** declaration using Section 2A.
 4. Under **Main Store Listing**:
