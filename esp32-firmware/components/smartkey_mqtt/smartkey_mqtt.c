@@ -155,7 +155,6 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
                                void *event_data)
 {
     (void)arg;
-    (void)event_data;
 
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
         esp_err_t err = esp_wifi_connect();
@@ -164,7 +163,9 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
         }
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
         s_mqtt_connected = false;
-        ESP_LOGW(TAG, "Wi-Fi disconnected; reconnecting");
+        const wifi_event_sta_disconnected_t *ev = event_data;
+        ESP_LOGW(TAG, "Wi-Fi disconnected (reason %d, rssi %d); reconnecting",
+                 ev ? ev->reason : -1, ev ? ev->rssi : 0);
         esp_err_t err = esp_wifi_connect();
         if (err != ESP_OK) {
             ESP_LOGE(TAG, "could not reconnect to Wi-Fi: %s", esp_err_to_name(err));
