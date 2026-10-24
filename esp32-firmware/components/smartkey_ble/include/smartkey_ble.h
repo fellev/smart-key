@@ -72,15 +72,6 @@ skb_state_t skb_state(void);
 bool skb_get_session(skb_session_t *out);
 
 /**
- * @brief Verify proximity from a fresh connection RSSI sample.
- *
- * Returns false when there is no authenticated connection, the live RSSI
- * cannot be read, the filtered gate is not near, or the fresh sample is below
- * the configured far threshold.
- */
-bool skb_phone_near_now(void);
-
-/**
  * @brief Report an unlock attempt to the phone (protocol-spec.md §6).
  * @param result one of skp_unlock_result_t
  */

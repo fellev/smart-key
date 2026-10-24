@@ -264,11 +264,6 @@ menu "SmartKey door unit"
             help
                 When enabled, a phone that advertises without the UNLOCKED flag is
                 ignored (security-model.md, threat A5).
-
-        config SMARTKEY_UNLOCK_MIN_INTERVAL_MS
-            int "Minimum interval between two unlocks (ms)"
-            default 2000
-            range 0 60000
     endmenu
 
     menu "Wi-Fi and MQTT"

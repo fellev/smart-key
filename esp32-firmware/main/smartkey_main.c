@@ -29,15 +29,6 @@
 
 static const char *TAG = "smartkey";
 
-/** Rate limiting state for the unlock button (security-model.md §3). */
-typedef struct {
-    int64_t last_unlock_us;
-    uint8_t unlocks_this_minute;
-    int64_t minute_started_us;
-} rate_limit_t;
-
-static rate_limit_t s_rate;
-
 /**
  * @brief Map the BLE presence state to what the LED should show.
  *
@@ -97,29 +88,6 @@ static void on_paired(size_t slot, void *ctx)
     }
 }
 
-/** @return true when another unlock is allowed right now. */
-static bool rate_limit_allows(void)
-{
-    int64_t now = esp_timer_get_time();
-
-    if (now - s_rate.minute_started_us > 60 * 1000000LL) {
-        s_rate.minute_started_us = now;
-        s_rate.unlocks_this_minute = 0;
-    }
-    if (s_rate.unlocks_this_minute >= 10) {
-        ESP_LOGW(TAG, "rate limit: more than 10 unlocks in a minute");
-        return false;
-    }
-    if ((now - s_rate.last_unlock_us) < CONFIG_SMARTKEY_UNLOCK_MIN_INTERVAL_MS * 1000LL) {
-        ESP_LOGW(TAG, "rate limit: unlocks are too close together");
-        return false;
-    }
-
-    s_rate.last_unlock_us = now;
-    s_rate.unlocks_this_minute++;
-    return true;
-}
-
 /**
  * @brief Short press: unlock only when an authenticated phone is *at the door*.
  *
@@ -139,19 +107,6 @@ static void handle_unlock_request(void)
         skio_led_set(SKIO_LED_BLINK_FAST);
         vTaskDelay(pdMS_TO_TICKS(600));
         skio_led_set(led_for_state(skb_state()));
-        return;
-    }
-
-    if (!skb_phone_near_now()) {
-        ESP_LOGW(TAG, "button pressed but live RSSI does not confirm phone proximity");
-        skio_led_set(SKIO_LED_BLINK_FAST);
-        vTaskDelay(pdMS_TO_TICKS(600));
-        skio_led_set(led_for_state(skb_state()));
-        return;
-    }
-
-    if (!rate_limit_allows()) {
-        skb_report_unlock(SKP_UNLOCK_RATE_LIMITED);
         return;
     }
 

@@ -272,7 +272,6 @@ def main():
         ("sessionTtlSeconds", "SMARTKEY_SESSION_TTL_S"),
         ("handshakeTimeoutMs", "SMARTKEY_HANDSHAKE_TIMEOUT_MS"),
         ("pairingWindowSeconds", "SMARTKEY_PAIRING_WINDOW_S"),
-        ("unlockMinIntervalMs", "SMARTKEY_UNLOCK_MIN_INTERVAL_MS"),
     ):
         check_pair(f"timing {name}", kconfig.get(option), schema["timing"][name])
 

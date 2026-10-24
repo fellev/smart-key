@@ -140,8 +140,7 @@
     "rssiEnterDbm": -70,
     "rssiExitDbm": -85,
     "rssiExitSamples": 3,
-    "pairingWindowSeconds": 120,
-    "unlockMinIntervalMs": 2000
+    "pairingWindowSeconds": 120
   },
   "proximity": {
     "$comment": "LED gate: the phone must be measured next to the board, not merely authenticated. See protocol-spec.md \u00a78.4.",

@@ -34,7 +34,7 @@
 | A6 flash extraction | Flash encryption + NVS encryption in production builds; each lock has unique keys, so one compromised lock does not affect others |
 | Timing side channels | All tag comparisons use constant-time compare (`mbedtls_ct_memcmp` / `MessageDigest.isEqual`) |
 | Brute force on the pairing code | The code only enters the KDF; a wrong guess fails the confirmation. 3 attempts then pairing mode exits, and pairing mode itself needs a 5 s physical button hold |
-| Unlock spam | Rate limit: at most 1 unlock per `CONFIG_SMARTKEY_UNLOCK_MIN_INTERVAL_MS` (default 2000 ms) and 10 per minute |
+| Unlock spam | No firmware rate limit (removed) |
 
 ## 4. Why no BLE bonding / LE Secure Connections?
 
