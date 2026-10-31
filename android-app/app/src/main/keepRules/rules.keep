@@ -1,12 +1,13 @@
-# Add project specific R8 rules here.
-# AGP will combine all keep rule files in src/main/keepRules to pass to R8
-#
-# For more details, see
-#   https://d.android.com/r/tools/r8/keep-rules
+# R8 rules for SmartKey. Manifest components (service, receivers, activity) are
+# kept automatically, and Tink / security-crypto / ViewBinding ship or need no
+# blanket keep rules, so leaving them out lets R8 obfuscate as much as possible.
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Optional Tink dependencies that are not on the classpath.
+-dontwarn com.google.api.client.**
+-dontwarn javax.annotation.**
+-dontwarn org.joda.time.**
+-dontwarn kotlinx.coroutines.**
+
+# Keep readable stack traces for crash reports and Play Console deobfuscation.
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile

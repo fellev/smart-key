@@ -14,8 +14,8 @@ android {
         applicationId = "com.smartkey.app"
         minSdk = 36
         targetSdk = 37
-        versionCode = 4
-        versionName = "1.0.3"
+        versionCode = 5
+        versionName = "1.0.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -53,7 +53,7 @@ android {
     buildTypes {
         release {
             optimization {
-                enable = false
+                enable = true
             }
             signingConfig = signingConfigs.getByName("release")
         }
