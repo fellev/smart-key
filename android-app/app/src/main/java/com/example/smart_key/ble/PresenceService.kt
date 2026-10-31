@@ -81,10 +81,10 @@ class PresenceService : LifecycleService(), SmartKeyGattServer.Listener {
                 // A door beacon was picked up by the offloaded scan. In
                 // listen-first mode this is what breaks radio silence.
                 val lockIdPrefix = intent.getByteArrayExtra(EXTRA_DOOR_ID_PREFIX)
-                if (lockIdPrefix == null || !intent.hasExtra(EXTRA_DOOR_EPOCH)) {
-                    Log.w(TAG, "door beacon action missing identity or epoch")
+                if (lockIdPrefix == null) {
+                    Log.w(TAG, "door beacon action missing identity")
                 } else {
-                    onDoorSeen(lockIdPrefix, intent.getLongExtra(EXTRA_DOOR_EPOCH, 0))
+                    onDoorSeen(lockIdPrefix)
                 }
                 return START_STICKY
             }
@@ -163,7 +163,7 @@ class PresenceService : LifecycleService(), SmartKeyGattServer.Listener {
     }
 
     /** A door beacon was seen; break radio silence if we are listening. */
-    private fun onDoorSeen(lockIdPrefix: ByteArray, epoch: Long) {
+    private fun onDoorSeen(lockIdPrefix: ByteArray) {
         if (lockIdPrefix.size != SmartKeyProtocol.DOOR_ID_SIZE) return
         val credential = store.all().firstOrNull {
             it.lockId.copyOfRange(0, SmartKeyProtocol.DOOR_ID_SIZE).contentEquals(lockIdPrefix)
@@ -172,7 +172,7 @@ class PresenceService : LifecycleService(), SmartKeyGattServer.Listener {
             startPresence()
         }
         if (!gate.isRunning) return
-        advertiser.setDoorEpoch(credential, epoch)
+        advertiser.setTargetDoor(credential)
         gate.onDoorSeen(SystemClock.elapsedRealtime())
         applyGate()
     }
@@ -343,7 +343,6 @@ class PresenceService : LifecycleService(), SmartKeyGattServer.Listener {
         /** A door beacon was heard; breaks radio silence in listen-first mode. */
         const val ACTION_DOOR_SEEN = "com.example.smart_key.DOOR_SEEN_SERVICE"
         const val EXTRA_DOOR_ID_PREFIX = "door_id_prefix"
-        const val EXTRA_DOOR_EPOCH = "door_epoch"
 
         private val _state = MutableStateFlow(State.STOPPED)
         val state: StateFlow<State> = _state

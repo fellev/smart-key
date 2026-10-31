@@ -9,6 +9,7 @@
 #include "smartkey_ble.h"
 
 #include <string.h>
+#include <time.h>
 
 #include "esp_log.h"
 #include "esp_timer.h"
@@ -131,6 +132,21 @@ static conn_ctx_t s_conn = {.conn_handle = BLE_HS_CONN_HANDLE_NONE};
 static char s_pairing_code[SKP_PAIRING_CODE_LEN + 1];
 static int64_t s_pairing_until_us;
 static uint8_t s_own_addr_type;
+
+/**
+ * The pseudonym epoch is always derived from real (SNTP) time so it matches
+ * the phone's. Until the clock is set the lock cannot match any phone, and
+ * the door beacon is not broadcast.
+ */
+static bool clock_is_valid(void)
+{
+    return time(NULL) > 1700000000;
+}
+
+static uint64_t epoch_now(void)
+{
+    return skc_epoch_for((uint64_t)time(NULL));
+}
 
 static void start_scan(void);
 static int gap_event(struct ble_gap_event *event, void *arg);
@@ -743,7 +759,10 @@ static bool should_connect(const struct ble_gap_disc_desc *desc, size_t *out_slo
  */
 static void start_door_beacon(void)
 {
-    const uint64_t epoch = skc_epoch_for((uint64_t)(esp_timer_get_time() / 1000000));
+    if (!clock_is_valid()) {
+        return; /* no real time yet: nothing meaningful to broadcast */
+    }
+    const uint64_t epoch = epoch_now();
     if (s_door_beacon_on && s_door_beacon_epoch_valid && s_door_beacon_epoch == epoch) {
         return;
     }
@@ -1038,7 +1057,7 @@ static void housekeeping_task(void *arg)
         if (last_pseudo == 0 || (now - last_pseudo) >= pseudo_period) {
             last_pseudo = now;
             /* Epochs are 15 s wide; once per second is plenty and cheap. */
-            skb_pseudo_rebuild(skc_epoch_for((uint64_t)(esp_timer_get_time() / 1000000)));
+            skb_pseudo_rebuild(epoch_now());
             update_door_beacon();
         }
 
@@ -1162,7 +1181,7 @@ void skb_refresh_pseudonyms(void)
      * hold must not outlive them and lock out a freshly paired phone. */
     rearm_clear();
     skb_pseudo_invalidate();
-    skb_pseudo_rebuild(skc_epoch_for((uint64_t)(esp_timer_get_time() / 1000000)));
+    skb_pseudo_rebuild(epoch_now());
 }
 
 /* --------------------------------------------------------------- init */

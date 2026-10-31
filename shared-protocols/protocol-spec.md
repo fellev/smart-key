@@ -165,10 +165,11 @@ sides **must** reject the other type rather than mis-parsing it.
   a low-power background scan.
 * Suspended while a pairing window is open (the pairing advertisement takes the radio) and,
   by default, while any phone is connected (there is then nobody to wake).
-* `local_epoch = floor(ESP32_uptime_seconds / 15)`. On receipt, a phone selects the credential
-  matching `lock_id[0..5]`, calculates its pseudonym for `local_epoch`, and advances the epoch
-  from its own monotonic elapsed time until the next door beacon refreshes it. This deliberately
-  requires no RTC, NTP, or internet connectivity on the door.
+* `local_epoch = floor(unix_seconds / 15)`, taken from the door's NTP-synchronised clock, the
+  same epoch every phone derives from its own clock. A phone uses the beacon only as a wake-up
+  and to pick the credential matching `lock_id[0..5]`; it does not adopt `local_epoch`.
+  The door neither broadcasts the beacon nor matches any phone until its clock has been
+  synchronised, so it needs Wi-Fi and NTP reachability after every boot.
 
 #### What it is not
 

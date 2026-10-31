@@ -1,5 +1,5 @@
 idf_component_register(
     SRCS "smartkey_mqtt.c"
     INCLUDE_DIRS "include"
-    REQUIRES esp_event esp_netif esp_wifi freertos mqtt
+    REQUIRES esp_event esp_netif esp_wifi freertos lwip mqtt
 )

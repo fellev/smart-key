@@ -59,7 +59,6 @@ class ScanRecoveryReceiver : BroadcastReceiver() {
         val start = Intent(context, PresenceService::class.java).apply {
             action = PresenceService.ACTION_DOOR_SEEN
             putExtra(PresenceService.EXTRA_DOOR_ID_PREFIX, beacon.lockId)
-            putExtra(PresenceService.EXTRA_DOOR_EPOCH, beacon.localEpoch)
         }
         ContextCompat.startForegroundService(context.applicationContext, start)
     }

@@ -37,13 +37,7 @@ class SmartKeyAdvertiser(context: Context) {
     private var credentials: List<Credential> = emptyList()
     private var currentEpoch = -1L
     private var running = false
-    private var doorEpoch: DoorEpoch? = null
-
-    private class DoorEpoch(
-        val credential: Credential,
-        val epoch: Long,
-        val receivedAtMs: Long
-    )
+    private var targetDoor: Credential? = null
 
     /** Extra state bits folded into the beacon flags. */
     var screenOn: Boolean = true
@@ -79,8 +73,8 @@ class SmartKeyAdvertiser(context: Context) {
      */
     fun start(credentials: List<Credential>) {
         this.credentials = credentials
-        doorEpoch = doorEpoch?.takeIf { target ->
-            credentials.any { it.lockId.contentEquals(target.credential.lockId) }
+        targetDoor = targetDoor?.takeIf { target ->
+            credentials.any { it.lockId.contentEquals(target.lockId) }
         }
         if (credentials.isEmpty()) {
             stop()
@@ -96,9 +90,10 @@ class SmartKeyAdvertiser(context: Context) {
         handler.post(ticker)
     }
 
-    /** Target the saved door that supplied [epoch], advancing it by elapsed time. */
-    fun setDoorEpoch(credential: Credential, epoch: Long) {
-        doorEpoch = DoorEpoch(credential, epoch, SystemClock.elapsedRealtime())
+    /** Advertise for the saved door whose beacon was just heard. */
+    fun setTargetDoor(credential: Credential) {
+        if (targetDoor?.lockId.contentEquals(credential.lockId)) return
+        targetDoor = credential
         currentEpoch = -1L
     }
 
@@ -111,7 +106,7 @@ class SmartKeyAdvertiser(context: Context) {
 
     /** Rebuild the payload and restart the advertisement. */
     private fun restartAdvertising(epoch: Long) {
-        val credential = doorEpoch?.credential ?: credentials.firstOrNull() ?: return
+        val credential = targetDoor ?: credentials.firstOrNull() ?: return
         runCatching { advertiser?.stopAdvertising(callback) }
 
         val beacon = SmartKeyAdvertisement.forEpoch(
@@ -143,13 +138,8 @@ class SmartKeyAdvertiser(context: Context) {
         Log.d(TAG, "advertising epoch $epoch for lock ${credential.shortId}")
     }
 
-    private fun currentDoorEpoch(): Long {
-        val target = doorEpoch ?: return SmartKeyCrypto.currentEpoch()
-        val elapsedEpochs =
-            (SystemClock.elapsedRealtime() - target.receivedAtMs) /
-                (SmartKeyCrypto.BEACON_EPOCH_SECONDS * 1000)
-        return target.epoch + elapsedEpochs
-    }
+    /** The lock's clock is real (NTP) time too, so no per-door offset exists. */
+    private fun currentDoorEpoch(): Long = SmartKeyCrypto.currentEpoch()
 
     companion object {
         private const val TAG = "SmartKeyAdvertiser"

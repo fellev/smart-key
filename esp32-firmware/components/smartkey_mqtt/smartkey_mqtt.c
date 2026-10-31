@@ -16,6 +16,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
+#include "esp_sntp.h"
 #include "mqtt_client.h"
 
 static const char *TAG = "sk_mqtt";
@@ -121,6 +122,24 @@ static void mqtt_event_handler(void *arg, esp_event_base_t event_base, int32_t e
     }
 }
 
+static void sntp_synced(struct timeval *tv)
+{
+    (void)tv;
+    ESP_LOGI(TAG, "system clock synchronised (unix %lld)", (long long)tv->tv_sec);
+}
+
+/** The BLE pseudonym epoch follows wall-clock time once this has run. */
+static void start_sntp(void)
+{
+    if (esp_sntp_enabled()) {
+        return;
+    }
+    esp_sntp_setoperatingmode(ESP_SNTP_OPMODE_POLL);
+    esp_sntp_setservername(0, "pool.ntp.org");
+    sntp_set_time_sync_notification_cb(sntp_synced);
+    esp_sntp_init();
+}
+
 static void start_mqtt_client(void)
 {
     if (s_client != NULL) {
@@ -173,6 +192,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         const ip_event_got_ip_t *event = event_data;
         ESP_LOGI(TAG, "Wi-Fi connected with address " IPSTR, IP2STR(&event->ip_info.ip));
+        start_sntp();
         start_mqtt_client();
     }
 }
